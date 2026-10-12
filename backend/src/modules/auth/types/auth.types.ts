@@ -1,4 +1,1 @@
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-}
+export * from "../domain/types/auth.types.js";

@@ -1,6 +1,2 @@
-import mongoose from "mongoose";
-import userSchema from "./user.schema.js";
-
-const User = mongoose.model("User", userSchema);
-
-export default User;
+export * from "./infrastructure/persistence/models/user.model.js";
+export { default } from "./infrastructure/persistence/models/user.model.js";

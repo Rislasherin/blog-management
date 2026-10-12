@@ -2,10 +2,10 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config/env.js";
-import { globalRateLimiter } from "./middleware/rateLimiter.middleware.js";
-import authRouter from "./modules/auth/auth.routes.js";
-import postRouter from "./modules/posts/post.routes.js";
-import errorMiddleware from "./middleware/error.middleware.js";
+import { globalRateLimiter } from "./shared/middleware/rateLimiter.middleware.js";
+import { createAuthModule } from "./modules/auth/auth.module.js";
+import { createPostModule } from "./modules/posts/posts.module.js";
+import { errorMiddleware } from "./shared/middleware/error.middleware.js";
 
 const app = express();
 
@@ -45,8 +45,11 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.use("/api/auth", authRouter);
-app.use("/api/posts", postRouter);
+const authModule = createAuthModule();
+const postModule = createPostModule({ authMiddleware: authModule.authMiddleware });
+
+app.use("/api/auth", authModule.router);
+app.use("/api/posts", postModule.router);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
