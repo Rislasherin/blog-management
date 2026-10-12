@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f7fd;
+  --surface: #ffffff;
+  --foreground: #14142b;
+  --muted: #55557a;
+  --subtle: #8b8bad;
+  --line: #e6e6f4;
+  --accent: #6d4aff;
+  --accent-strong: #5732e6;
+  --accent-soft: #efeaff;
+  --pink: #ff4d8d;
+  --cyan: #17b6e8;
+  --amber: #ffb020;
+  --danger: #d92d4a;
+  --danger-soft: #fff0f3;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-pink: var(--pink);
+  --color-cyan: var(--cyan);
+  --color-amber: var(--amber);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-fraunces);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60rem 30rem at 90% -8%, rgb(109 74 255 / 0.14), transparent 70%),
+    radial-gradient(50rem 28rem at -8% 8%, rgb(255 77 141 / 0.11), transparent 70%),
+    radial-gradient(40rem 24rem at 50% 105%, rgb(23 182 232 / 0.10), transparent 70%);
+  background-repeat: no-repeat;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, #6d4aff, #c13fff 55%, #ff4d8d);
+}
+
+@utility text-gradient {
+  background-image: linear-gradient(100deg, #6d4aff, #c13fff 35%, #ff4d8d 65%, #ff8a4c, #6d4aff);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s linear infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(24px, 30px) scale(1.08); }
+}
+@keyframes float-b {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-28px, 18px) rotate(12deg); }
+}
+@keyframes gradient-pan {
+  to { background-position: -250% 0; }
+}
+@keyframes ping-soft {
+  0% { box-shadow: 0 0 0 0 rgb(109 74 255 / 0.5); }
+  100% { box-shadow: 0 0 0 10px rgb(109 74 255 / 0); }
+}
+
+/* Per-card colour tones (deterministic, derived from post id) */
+.tone-0 { --from: #6d4aff; --to: #c13fff; }
+.tone-1 { --from: #ff4d8d; --to: #ff8a4c; }
+.tone-2 { --from: #17b6e8; --to: #4f6bff; }
+.tone-3 { --from: #12b981; --to: #17b6e8; }
+.tone-4 { --from: #f59e0b; --to: #ff4d8d; }
+.tone-bar { background-image: linear-gradient(90deg, var(--from), var(--to)); }
+.tone-block { background-image: linear-gradient(135deg, var(--from), var(--to)); }
+.tone-chip { background: color-mix(in srgb, var(--from) 12%, white); color: var(--from); }
+
+@layer components {
+  .container-page { @apply mx-auto w-full max-w-6xl px-5 sm:px-8; }
+
+  .animate-rise { animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-float-a { animation: float-a 11s ease-in-out infinite; }
+  .animate-float-b { animation: float-b 14s ease-in-out infinite; }
+  .dot-ping { animation: ping-soft 1.8s ease-out infinite; }
+
+  .card-enter { animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .card-enter:nth-child(2) { animation-delay: 0.07s; }
+  .card-enter:nth-child(3) { animation-delay: 0.14s; }
+  .card-enter:nth-child(4) { animation-delay: 0.21s; }
+  .card-enter:nth-child(5) { animation-delay: 0.28s; }
+  .card-enter:nth-child(6) { animation-delay: 0.35s; }
+  .card-enter:nth-child(n + 7) { animation-delay: 0.42s; }
+
+  .read-pill {
+    @apply rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-300;
+    background: color-mix(in srgb, var(--from) 12%, white);
+    color: var(--from);
+  }
+  .card-enter:hover .read-pill { background-image: linear-gradient(135deg, var(--from), var(--to)); color: #fff; }
+
+  .hero-grid {
+    background-image:
+      linear-gradient(to right, rgb(109 74 255 / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(109 74 255 / 0.08) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 70% 80% at 50% 0%, #000 30%, transparent 75%);
+  }
+
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition duration-300 ease-out disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply text-white;
+    background-image: linear-gradient(135deg, #6d4aff, #c13fff 55%, #ff4d8d);
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+    box-shadow: 0 8px 20px -8px rgb(109 74 255 / 0.6);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-position: 100% 50%;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 26px -10px rgb(193 63 255 / 0.65);
+  }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .btn-secondary { @apply border border-line bg-surface text-foreground hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent hover:shadow-md hover:shadow-accent/10; }
+  .btn-danger { @apply border border-danger/25 bg-surface text-danger hover:bg-danger-soft; }
+
+  .field-label { @apply mb-2 block text-sm font-semibold text-foreground; }
+  .field {
+    @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-foreground transition duration-200 placeholder:text-subtle focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 disabled:cursor-not-allowed disabled:bg-background disabled:text-subtle aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/15;
+  }
+  .alert-danger { @apply rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm text-danger; }
+
+  .post-body {
+    @apply font-serif text-lg leading-8 whitespace-pre-wrap text-foreground/90 [overflow-wrap:anywhere];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
