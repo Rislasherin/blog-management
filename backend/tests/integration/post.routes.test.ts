@@ -18,38 +18,58 @@ vi.mock("../../src/modules/posts/services/cloudinary-image.storage.js", () => {
   };
 });
 
+vi.mock("../../src/modules/posts/infrastructure/storage/cloudinary-image.storage.js", () => {
+  return {
+    CloudinaryImageStorage: class {
+      upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
+      delete = vi.fn().mockResolvedValue(undefined);
+    }
+  };
+});
+
+const { MockMongoPostRepository } = vi.hoisted(() => {
+  class MockMongoPostRepository {
+    posts: IPost[] = [];
+    async create(data: { title: string; subtitle?: string | null; content: string; imageUrl?: string | null; authorId: string }) {
+      const post: IPost = { id: Math.random().toString(), subtitle: null, imageUrl: null, ...data, createdAt: new Date(), updatedAt: new Date() };
+      this.posts.push(post);
+      return post;
+    }
+    async findById(id: string) {
+      return this.posts.find(p => p.id === id) || null;
+    }
+    async update(id: string, data: { title?: string; subtitle?: string | null; content?: string; imageUrl?: string | null }) {
+      const index = this.posts.findIndex(p => p.id === id);
+      if (index === -1) return null;
+      this.posts[index] = { ...this.posts[index], ...data } as IPost;
+      return this.posts[index];
+    }
+    async delete(id: string) {
+      const index = this.posts.findIndex(p => p.id === id);
+      if (index === -1) return false;
+      this.posts.splice(index, 1);
+      return true;
+    }
+    async findAll(pagination: { page: number; limit: number }) {
+      return { items: this.posts, page: pagination.page || 1, limit: pagination.limit || 10, totalItems: this.posts.length, totalPages: 1 };
+    }
+    async findByAuthorId(authorId: string, pagination: { page: number; limit: number }) {
+      const filtered = this.posts.filter(p => p.authorId === authorId);
+      return { items: filtered, page: pagination.page || 1, limit: pagination.limit || 10, totalItems: filtered.length, totalPages: 1 };
+    }
+  }
+  return { MockMongoPostRepository };
+});
+
 vi.mock("../../src/modules/posts/repositories/mongo-post.repository.js", () => {
   return {
-    MongoPostRepository: class {
-      posts: IPost[] = [];
-      async create(data: any) {
-        const post = { id: Math.random().toString(), ...data, createdAt: new Date(), updatedAt: new Date() };
-        this.posts.push(post);
-        return post;
-      }
-      async findById(id: string) {
-        return this.posts.find(p => p.id === id) || null;
-      }
-      async update(id: string, data: any) {
-        const index = this.posts.findIndex(p => p.id === id);
-        if (index === -1) return null;
-        this.posts[index] = { ...this.posts[index], ...data };
-        return this.posts[index];
-      }
-      async delete(id: string) {
-        const index = this.posts.findIndex(p => p.id === id);
-        if (index === -1) return false;
-        this.posts.splice(index, 1);
-        return true;
-      }
-      async findAll(pagination: any) {
-        return { items: this.posts, page: 1, limit: 10, totalItems: this.posts.length, totalPages: 1 };
-      }
-      async findByAuthorId(authorId: string, pagination: any) {
-        const filtered = this.posts.filter(p => p.authorId === authorId);
-        return { items: filtered, page: 1, limit: 10, totalItems: filtered.length, totalPages: 1 };
-      }
-    }
+    MongoPostRepository: MockMongoPostRepository
+  };
+});
+
+vi.mock("../../src/modules/posts/infrastructure/persistence/repositories/mongo-post.repository.js", () => {
+  return {
+    MongoPostRepository: MockMongoPostRepository
   };
 });
 

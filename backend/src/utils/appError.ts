@@ -1,11 +1,1 @@
-class AppError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-
-export default AppError;
+export { AppError, default } from "../shared/errors/AppError.js";
