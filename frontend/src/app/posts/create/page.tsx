@@ -1,7 +1,7 @@
 "use client";
 
-import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
-import { CreatePostForm } from "@/features/posts/CreatePostForm";
+import { ProtectedRoute } from "@/features/auth";
+import { CreatePostForm } from "@/features/posts";
 
 export default function CreatePostPage() {
   return (

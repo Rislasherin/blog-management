@@ -3,13 +3,10 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
-import { useAuth } from "@/features/auth/AuthContext";
-import { EditPostForm } from "@/features/posts/EditPostForm";
+import { ProtectedRoute, useAuth } from "@/features/auth";
+import { EditPostForm, postService, type Post } from "@/features/posts";
 import { StatePanel } from "@/components/ui/StatePanel";
 import { Spinner } from "@/components/ui/Spinner";
-import { postService } from "@/services/post.service";
-import type { Post } from "@/types/post.types";
 
 type PageProps = {
   params: Promise<{ id: string }>;

@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { postService } from "@/services/post.service";
-import { PostCard } from "@/features/posts/PostCard";
-import { CreatePostCta } from "@/features/posts/CreatePostCta";
-import { HeroActions } from "@/features/home/HeroActions";
+import { postService, PostCard, CreatePostCta, type Post } from "@/features/posts";
+import { HeroActions } from "@/features/home";
 import { Pagination } from "@/components/ui/Pagination";
 import { StatePanel } from "@/components/ui/StatePanel";
-import type { Post } from "@/types/post.types";
 
 type PageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { authService } from "@/services/auth.service";
-import { useAuth } from "@/features/auth/AuthContext";
-import { ApiError } from "@/services/api-client";
+import { authService, useAuth } from "@/features/auth";
+import { ApiError } from "@/lib/api/api-client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export default function LoginPage() {

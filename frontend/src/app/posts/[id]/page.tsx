@@ -1,8 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { postService } from "@/services/post.service";
-import { PostActions } from "@/features/posts/PostActions";
+import { postService, PostActions } from "@/features/posts";
 import { StatePanel } from "@/components/ui/StatePanel";
 
 type PageProps = {

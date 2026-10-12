@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { postService } from "@/services/post.service";
-import { PostCard } from "@/features/posts/PostCard";
+import { postService, PostCard, type Post } from "@/features/posts";
 import { Pagination } from "@/components/ui/Pagination";
 import { StatePanel } from "@/components/ui/StatePanel";
-import type { Post } from "@/types/post.types";
 
 type PageProps = {
   params: Promise<{ id: string }>;

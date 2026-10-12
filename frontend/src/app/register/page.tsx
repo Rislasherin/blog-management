@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authService } from "@/services/auth.service";
-import { AuthShell } from "@/features/auth/AuthShell";
+import { authService, AuthShell } from "@/features/auth";
 import { Spinner } from "@/components/ui/Spinner";
-import { ApiError } from "@/services/api-client";
+import { ApiError } from "@/lib/api/api-client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export default function RegisterPage() {
