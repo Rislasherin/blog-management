@@ -9,7 +9,6 @@
   "routes": [
     { "src": "/(.*)", "dest": "backend/$1" }
   ],
-  "rootDirectory": "backend",
   "installCommand": "npm ci",
   "buildCommand": "npm run build"
 }
