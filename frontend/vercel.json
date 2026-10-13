@@ -1,14 +1,4 @@
+
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "backend/package.json",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "backend/$1" }
-  ],
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build"
+  "version": 2
 }
