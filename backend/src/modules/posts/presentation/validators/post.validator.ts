@@ -6,7 +6,11 @@ export const createPostSchema = z.object({
   content: z.string().trim().min(10).max(10000),
 }).strict();
 
-export type CreatePostInput = z.infer<typeof createPostSchema>;
+export interface CreatePostInput {
+  title: string;
+  subtitle?: string | null;
+  content: string;
+}
 
 export const updatePostSchema = z.object({
   title: z.string().trim().min(3).max(150).optional(),
@@ -14,11 +18,18 @@ export const updatePostSchema = z.object({
   content: z.string().trim().min(10).max(10000).optional(),
 }).strict();
 
-export type UpdatePostInput = z.infer<typeof updatePostSchema>;
+export interface UpdatePostInput {
+  title?: string;
+  subtitle?: string | null;
+  content?: string;
+}
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
-export type PaginationInput = z.infer<typeof paginationSchema>;
+export interface PaginationInput {
+  page: number;
+  limit: number;
+}

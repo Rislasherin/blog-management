@@ -49,7 +49,7 @@ export class MongoPostRepository implements IPostRepository {
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
-      items: posts.map((post) => this.toDomain(post)),
+      items: posts.map((post: IPostDocument) => this.toDomain(post)),
       page,
       limit,
       totalItems,

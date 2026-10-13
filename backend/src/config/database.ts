@@ -11,7 +11,7 @@ const attachEventListeners = () => {
     logger.info("MongoDB connection established successfully");
   });
 
-  mongoose.connection.on("error", (err) => {
+  mongoose.connection.on("error", (err: unknown) => {
     logger.error({ err }, "MongoDB encountered a connection error");
   });
 

@@ -1,7 +1,7 @@
-import { Schema } from "mongoose";
+import { Schema, Document } from "mongoose";
 import type { IUser } from "../../../domain/entities/user.entity.js";
 
-export const userSchema = new Schema<IUser>(
+export const userSchema = new Schema<IUser & Document>(
   {
     name: {
       type: String,
@@ -20,9 +20,11 @@ export const userSchema = new Schema<IUser>(
       required: true,
     },
   },
+  
   {
     timestamps: true,
   }
+
 );
 
 export default userSchema;

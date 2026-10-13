@@ -30,7 +30,7 @@ export class CloudinaryImageStorage implements IImageStorage {
             { fetch_format: "auto" }
           ]
         },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error || !result) {
             logger.error({ error }, "Cloudinary image upload failed");
             return reject(new AppError(500, "Image upload failed"));

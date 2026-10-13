@@ -19,7 +19,11 @@ export const registerSchema = z.object({
     .max(100, "Password must not exceed 100 characters"),
 });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+}
 
 export const loginSchema = z.object({
   email: z
@@ -32,4 +36,7 @@ export const loginSchema = z.object({
     .min(1, "Password is required"),
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
+export interface LoginInput {
+  email: string;
+  password: string;
+}
