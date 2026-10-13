@@ -1,6 +1,7 @@
 import express from "express";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import helmet from "helmet";
+
 import { env } from "./config/env.js";
 import { globalRateLimiter } from "./shared/middleware/rateLimiter.middleware.js";
 import { createAuthModule } from "./modules/auth/auth.module.js";
@@ -15,25 +16,33 @@ const allowedOrigins = [
   env.CLIENT_URL,
   "http://localhost:3000",
   "http://localhost:3001",
-].filter(Boolean);
+].filter((origin): origin is string => Boolean(origin));
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-      // or if origin is in allowed list, or in development mode
-      if (!origin || allowedOrigins.includes(origin) || env.NODE_ENV === "development" || env.NODE_ENV === "test") {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS policy does not allow access from this origin."));
-    },
-    credentials: true,
-  })
-);
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests without an Origin header, such as curl or server-to-server requests.
+    // Allow configured origins and development/test environments.
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      env.NODE_ENV === "development" ||
+      env.NODE_ENV === "test"
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(
+      new Error("CORS policy does not allow access from this origin."),
+    );
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// Global API Rate Limiting
+// Global API rate limiting
 app.use(globalRateLimiter);
 
 app.get("/health", (req, res) => {
@@ -46,15 +55,23 @@ app.get("/health", (req, res) => {
 });
 
 const authModule = createAuthModule();
-const postModule = createPostModule({ authMiddleware: authModule.authMiddleware });
+
+const postModule = createPostModule({
+  authMiddleware: authModule.authMiddleware,
+});
 
 app.use("/api/auth", authModule.router);
 app.use("/api/posts", postModule.router);
 
+// Handle unknown routes
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
 });
 
+// Global error handling
 app.use(errorMiddleware);
 
 export default app;
