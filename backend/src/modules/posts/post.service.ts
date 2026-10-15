@@ -1,8 +1,8 @@
-import type { IPostRepository, IImageStorage, IPost, PaginationParams, PaginatedResult, CreatePostDTO, UpdatePostDTO } from "./post.types.js";
+import type { IPostRepository, IImageStorage, IPost, PaginationParams, PaginatedResult, CreatePostDTO, UpdatePostDTO, IPostService } from "./post.types.js";
 import { AppError } from "../../shared/errors/AppError.js";
 import logger from "../../logger/logger.js";
 
-export class PostService {
+export class PostService implements IPostService {
   constructor(
     private readonly postRepository: IPostRepository,
     private readonly imageStorage: IImageStorage

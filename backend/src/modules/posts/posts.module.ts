@@ -4,13 +4,14 @@ import { CloudinaryImageStorage } from "./cloudinary.storage.js";
 import { PostService } from "./post.service.js";
 import { PostController } from "./post.controller.js";
 import { createPostRouter } from "./post.routes.js";
-import type { IPostRepository, IImageStorage } from "./post.types.js";
+import type { IPostRepository, IImageStorage, IPostService } from "./post.types.js";
 import { createAuthMiddleware } from "../../shared/middleware/auth.middleware.js";
 import { JwtTokenService } from "../auth/jwt.service.js";
 
 export interface PostModuleDependencies {
   postRepository?: IPostRepository;
   imageStorage?: IImageStorage;
+  postService?: IPostService;
   requireAuth?: RequestHandler;
   authMiddleware?: RequestHandler;
 }
@@ -18,7 +19,7 @@ export interface PostModuleDependencies {
 export interface PostModule {
   postRepository: IPostRepository;
   imageStorage: IImageStorage;
-  postService: PostService;
+  postService: IPostService;
   postController: PostController;
   postRouter: Router;
   router: Router;

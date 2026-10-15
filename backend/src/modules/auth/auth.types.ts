@@ -86,3 +86,12 @@ export interface ITokenService {
   generateAccessToken(payload: AuthTokenPayload): string;
   verifyAccessToken(token: string): AuthTokenPayload;
 }
+
+export interface IAuthService {
+  initiateSignup(name: string, email: string, password: string): Promise<{ success: boolean; message: string }>;
+  verifySignupOtp(email: string, code: string, name: string, password: string): Promise<{ id?: string | undefined; name: string; email: string }>;
+  register(dto: RegisterDTO): Promise<{ success: boolean; message: string }>;
+  verifyOtp(dto: VerifyOtpDTO): Promise<{ id?: string | undefined; name: string; email: string }>;
+  login(email: string, password: string): Promise<LoginResponseDTO>;
+  loginDto(dto: LoginDTO): Promise<LoginResponseDTO>;
+}

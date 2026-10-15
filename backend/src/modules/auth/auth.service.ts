@@ -8,12 +8,13 @@ import type {
   LoginDTO,
   LoginResponseDTO,
   VerifyOtpDTO,
+  IAuthService,
 } from "./auth.types.js";
 import { MongoOtpRepository } from "./otp.repository.js";
 import { EmailService } from "./email.service.js";
 import { AppError } from "../../shared/errors/AppError.js";
 
-export class AuthService {
+export class AuthService implements IAuthService {
   private readonly otpRepository: IOtpRepository;
   private readonly emailService: EmailService;
 

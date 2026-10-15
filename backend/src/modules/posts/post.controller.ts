@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
-import type { PostService } from "./post.service.js";
+import type { IPostService } from "./post.types.js";
 import { paginationSchema, type CreatePostInput, type UpdatePostInput } from "./post.validator.js";
 import { AppError } from "../../shared/errors/AppError.js";
 
 export class PostController {
-  constructor(private readonly postService: PostService) {}
+  constructor(private readonly postService: IPostService) {}
 
   createPost = async (
     req: Request<{}, {}, CreatePostInput>,

@@ -1,10 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
-import type { AuthService } from "./auth.service.js";
+import type { IAuthService } from "./auth.types.js";
 import type { RegisterInput, LoginInput, VerifyOtpInput } from "./auth.validator.js";
 import logger from "../../logger/logger.js";
 
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: IAuthService) {}
 
   register = async (
     req: Request<{}, {}, RegisterInput>,

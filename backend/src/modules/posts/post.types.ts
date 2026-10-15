@@ -61,3 +61,12 @@ export interface IImageStorage {
   upload(file: Express.Multer.File): Promise<string>;
   delete(imageUrl: string): Promise<void>;
 }
+
+export interface IPostService {
+  createPost(input: CreatePostDTO, userId: string, file?: Express.Multer.File): Promise<IPost>;
+  getAllPosts(pagination: PaginationParams): Promise<PaginatedResult<IPost>>;
+  getPostById(id: string): Promise<IPost>;
+  getPostsByAuthor(userId: string, pagination: PaginationParams): Promise<PaginatedResult<IPost>>;
+  updatePost(postId: string, userId: string, input: UpdatePostDTO, file?: Express.Multer.File): Promise<IPost>;
+  deletePost(postId: string, userId: string): Promise<void>;
+}

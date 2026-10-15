@@ -7,19 +7,20 @@ import { AuthService } from "./auth.service.js";
 import { AuthController } from "./auth.controller.js";
 import { createAuthRouter } from "./auth.routes.js";
 import { createAuthMiddleware } from "../../shared/middleware/auth.middleware.js";
-import type { IUserRepository, ITokenService, IOtpRepository } from "./auth.types.js";
+import type { IUserRepository, ITokenService, IOtpRepository, IAuthService } from "./auth.types.js";
 
 export interface AuthModuleDependencies {
   userRepository?: IUserRepository;
   tokenService?: ITokenService;
   otpRepository?: IOtpRepository;
   emailService?: EmailService;
+  authService?: IAuthService;
 }
 
 export interface AuthModule {
   router: Router;
   authMiddleware: RequestHandler;
-  authService: AuthService;
+  authService: IAuthService;
   tokenService: ITokenService;
   userRepository: IUserRepository;
   otpRepository: IOtpRepository;
