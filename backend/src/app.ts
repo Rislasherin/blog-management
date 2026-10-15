@@ -10,10 +10,18 @@ import { errorMiddleware } from "./shared/middleware/error.middleware.js";
 
 const app = express();
 
+// Trust reverse proxy (Vercel, Render, Railway, AWS ALB, Nginx, etc.)
+// Required for express-rate-limit and accurate client IP resolution
+app.set("trust proxy", 1);
+
 app.use(helmet());
 
+const clientUrls = env.CLIENT_URL.split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
-  env.CLIENT_URL,
+  ...clientUrls,
   "http://localhost:3000",
   "http://localhost:3001",
 ].filter((origin): origin is string => Boolean(origin));

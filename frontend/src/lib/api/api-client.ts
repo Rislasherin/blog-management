@@ -9,7 +9,8 @@ export interface FetchOptions extends RequestInit {
   token?: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2000/api";
+const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:2000/api";
+const API_BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
 async function fetchClient<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, ...customConfig } = options;
@@ -35,7 +36,8 @@ async function fetchClient<T>(endpoint: string, options: FetchOptions = {}): Pro
     (config.headers as Record<string, string>)["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const response = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, config);
 
   let data;
   try {

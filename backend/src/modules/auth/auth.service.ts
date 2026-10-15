@@ -10,6 +10,7 @@ import type {
   VerifyOtpDTO,
   ResetPasswordDTO,
   IAuthService,
+  IEmailService,
 } from "./auth.types.js";
 import { MongoOtpRepository } from "./otp.repository.js";
 import { EmailService } from "./email.service.js";
@@ -17,13 +18,13 @@ import { AppError } from "../../shared/errors/AppError.js";
 
 export class AuthService implements IAuthService {
   private readonly otpRepository: IOtpRepository;
-  private readonly emailService: EmailService;
+  private readonly emailService: IEmailService;
 
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly tokenService: ITokenService,
     otpRepository?: IOtpRepository,
-    emailService?: EmailService
+    emailService?: IEmailService
   ) {
     this.otpRepository = otpRepository ?? new MongoOtpRepository();
     this.emailService = emailService ?? new EmailService();
@@ -43,14 +44,22 @@ export class AuthService implements IAuthService {
     const codeHash = await bcrypt.hash(code, 12);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await this.otpRepository.create({
+    const otp = await this.otpRepository.create({
       email,
       purpose: "signup" as OtpPurpose,
       codeHash,
       expiresAt,
     });
 
-    await this.emailService.sendOtp(email, code);
+    try {
+      await this.emailService.sendOtp(email, code);
+    } catch (error) {
+      if (otp?._id) {
+        await this.otpRepository.deleteMany({ _id: otp._id }).catch(() => {});
+      }
+      throw error;
+    }
+
     return { success: true, message: "OTP sent to email" };
   }
 
@@ -128,14 +137,22 @@ export class AuthService implements IAuthService {
     const codeHash = await bcrypt.hash(code, 12);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await this.otpRepository.create({
+    const otp = await this.otpRepository.create({
       email,
       purpose: "reset" as OtpPurpose,
       codeHash,
       expiresAt,
     });
 
-    await this.emailService.sendOtp(email, code);
+    try {
+      await this.emailService.sendOtp(email, code);
+    } catch (error) {
+      if (otp?._id) {
+        await this.otpRepository.deleteMany({ _id: otp._id }).catch(() => {});
+      }
+      throw error;
+    }
+
     return { success: true, message: "Password reset code sent to your email" };
   }
 

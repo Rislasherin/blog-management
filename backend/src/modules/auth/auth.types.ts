@@ -88,6 +88,11 @@ export interface ITokenService {
   verifyAccessToken(token: string): AuthTokenPayload;
 }
 
+export interface IEmailService {
+  sendOtp(email: string, code: string): Promise<void>;
+  verifyConnection?(): Promise<{ success: boolean; message: string }>;
+}
+
 export interface ResetPasswordDTO {
   email: string;
   password: string;
