@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { connectDB, disconnectDB } from "./config/database.js";
-import logger from "./infrastructure/logger/logger.js";
+import logger from "./logger/logger.js";
 import { env } from "./config/env.js";
 
 const PORT = env.PORT;

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import logger from "../infrastructure/logger/logger.js";
+import logger from "../logger/logger.js";
 import { env } from "./env.js";
 
 let isEventListenersAttached = false;

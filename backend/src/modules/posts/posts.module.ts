@@ -1,13 +1,12 @@
 import type { RequestHandler, Router } from "express";
-import { MongoPostRepository } from "./infrastructure/persistence/repositories/mongo-post.repository.js";
-import { CloudinaryImageStorage } from "./infrastructure/storage/cloudinary-image.storage.js";
-import { PostService } from "./application/services/post.service.js";
-import { PostController } from "./presentation/controllers/post.controller.js";
-import { createPostRouter } from "./presentation/routes/post.routes.js";
-import type { IPostRepository } from "./domain/repositories/post.repository.interface.js";
-import type { IImageStorage } from "./domain/services/image.storage.interface.js";
-import { createAuthMiddleware } from "../auth/presentation/middleware/auth.middleware.js";
-import { JwtTokenService } from "../auth/infrastructure/security/jwt.service.js";
+import { MongoPostRepository } from "./post.repository.js";
+import { CloudinaryImageStorage } from "./cloudinary.storage.js";
+import { PostService } from "./post.service.js";
+import { PostController } from "./post.controller.js";
+import { createPostRouter } from "./post.routes.js";
+import type { IPostRepository, IImageStorage } from "./post.types.js";
+import { createAuthMiddleware } from "../../shared/middleware/auth.middleware.js";
+import { JwtTokenService } from "../auth/jwt.service.js";
 
 export interface PostModuleDependencies {
   postRepository?: IPostRepository;
@@ -42,3 +41,5 @@ export const createPostModule = (deps?: PostModuleDependencies): PostModule => {
     router: postRouter,
   };
 };
+
+export default createPostModule;

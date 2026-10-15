@@ -1,1 +1,0 @@
-export { validate, default } from "../shared/middleware/validate.middleware.js";

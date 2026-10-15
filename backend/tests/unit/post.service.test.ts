@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import PostService from "../../src/modules/posts/post.service.js";
-import AppError from "../../src/utils/appError.js";
-import type { IPostRepository } from "../../src/modules/posts/interfaces/post.repository.interface.js";
-import type { IImageStorage } from "../../src/modules/posts/interfaces/image.storage.interface.js";
-import type { IPost } from "../../src/modules/posts/types/post.types.js";
+import AppError from "../../src/shared/errors/AppError.js";
+import type { IPostRepository, IImageStorage, IPost } from "../../src/modules/posts/post.types.js";
 
 const mockRepository = {
   create: vi.fn(),

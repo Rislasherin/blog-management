@@ -3,22 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { authService, AuthShell } from "@/features/auth";
+import { authService, AuthShell, OtpVerification } from "@/features/auth";
 import { Spinner } from "@/components/ui/Spinner";
 import { ApiError } from "@/lib/api/api-client";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 
+type RegisterStep = "FORM" | "OTP" | "SUCCESS";
+
 export default function RegisterPage() {
+  const [step, setStep] = useState<RegisterStep>("FORM");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -36,10 +38,7 @@ export default function RegisterPage() {
 
     try {
       await authService.register(name, email, password);
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
+      setStep("OTP");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -51,7 +50,14 @@ export default function RegisterPage() {
     }
   };
 
-  if (success) {
+  const handleOtpSuccess = () => {
+    setStep("SUCCESS");
+    setTimeout(() => {
+      router.push("/login");
+    }, 2000);
+  };
+
+  if (step === "SUCCESS") {
     return (
       <AuthShell
         title="Account created"
@@ -64,8 +70,33 @@ export default function RegisterPage() {
       >
         <div role="status" className="flex items-center gap-3 text-sm text-muted">
           <Spinner className="h-4 w-4 text-accent" />
-          Redirecting...
+          Redirecting to login...
         </div>
+      </AuthShell>
+    );
+  }
+
+  if (step === "OTP") {
+    return (
+      <AuthShell
+        title="Verify your email"
+        subtitle="Please enter the 6-digit code sent to your email."
+        footer={
+          <>
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-accent hover:underline">
+              Sign in
+            </Link>
+          </>
+        }
+      >
+        <OtpVerification
+          name={name}
+          email={email}
+          password={password}
+          onSuccess={handleOtpSuccess}
+          onBack={() => setStep("FORM")}
+        />
       </AuthShell>
     );
   }
@@ -89,7 +120,7 @@ export default function RegisterPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleFormSubmit} className="space-y-5">
         <div>
           <label htmlFor="name" className="field-label">Full name</label>
           <input
@@ -156,10 +187,10 @@ export default function RegisterPage() {
           {loading ? (
             <>
               <Spinner className="h-4 w-4" />
-              Creating account...
+              Sending verification code...
             </>
           ) : (
-            "Create account"
+            "Continue"
           )}
         </button>
       </form>

@@ -1,11 +1,44 @@
-import { createPostModule } from "./posts.module.js";
-import JwtTokenService from "../auth/services/jwt.service.js";
-import { authMiddleware } from "../../middleware/auth.middleware.js";
+import { Router, type RequestHandler } from "express";
+import type { PostController } from "./post.controller.js";
+import { validate } from "../../shared/middleware/validate.middleware.js";
+import { upload } from "../../shared/middleware/upload.middleware.js";
+import { createPostSchema, updatePostSchema } from "./post.validator.js";
 
-const tokenService = new JwtTokenService();
-const requireAuth = authMiddleware(tokenService);
+export const createPostRouter = (
+  postController: PostController,
+  requireAuth: RequestHandler
+): Router => {
+  const router = Router();
 
-const postModule = createPostModule({ requireAuth });
-export const postRouter = postModule.postRouter;
+  // Public routes
+  router.get("/", postController.getAllPosts);
+  router.get("/author/:authorId", postController.getPostsByAuthor);
+  router.get("/:id", postController.getPostById);
 
-export default postRouter;
+  // Protected routes
+  router.post(
+    "/",
+    requireAuth,
+    upload.single("image"),
+    validate(createPostSchema),
+    postController.createPost
+  );
+
+  router.patch(
+    "/:id",
+    requireAuth,
+    upload.single("image"),
+    validate(updatePostSchema),
+    postController.updatePost
+  );
+
+  router.delete(
+    "/:id",
+    requireAuth,
+    postController.deletePost
+  );
+
+  return router;
+};
+
+export default createPostRouter;

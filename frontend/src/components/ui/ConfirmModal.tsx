@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -15,6 +15,8 @@ interface ConfirmModalProps {
   onCancel: () => void;
 }
 
+const emptySubscribe = () => () => {};
+
 export function ConfirmModal({
   isOpen,
   title,
@@ -25,11 +27,11 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -52,7 +54,7 @@ export function ConfirmModal({
     };
   }, [isOpen, isProcessing, onCancel]);
 
-  if (!mounted || !isOpen) return null;
+  if (!isMounted || !isOpen) return null;
 
   // Render via portal directly to document.body to escape any parent CSS transforms
   return createPortal(

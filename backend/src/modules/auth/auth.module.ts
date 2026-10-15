@@ -1,16 +1,19 @@
 import type { Router, RequestHandler } from "express";
-import { MongoUserRepository } from "./infrastructure/persistence/repositories/mongo-user.repository.js";
-import { JwtTokenService } from "./infrastructure/security/jwt.service.js";
-import { AuthService } from "./application/services/auth.service.js";
-import { AuthController } from "./presentation/controllers/auth.controller.js";
-import { createAuthRouter } from "./presentation/routes/auth.routes.js";
-import { createAuthMiddleware } from "./presentation/middleware/auth.middleware.js";
-import type { IUserRepository } from "./domain/repositories/user.repository.interface.js";
-import type { ITokenService } from "./domain/services/token.service.interface.js";
+import { MongoUserRepository } from "./user.repository.js";
+import { MongoOtpRepository } from "./otp.repository.js";
+import { JwtTokenService } from "./jwt.service.js";
+import { EmailService } from "./email.service.js";
+import { AuthService } from "./auth.service.js";
+import { AuthController } from "./auth.controller.js";
+import { createAuthRouter } from "./auth.routes.js";
+import { createAuthMiddleware } from "../../shared/middleware/auth.middleware.js";
+import type { IUserRepository, ITokenService, IOtpRepository } from "./auth.types.js";
 
 export interface AuthModuleDependencies {
   userRepository?: IUserRepository;
   tokenService?: ITokenService;
+  otpRepository?: IOtpRepository;
+  emailService?: EmailService;
 }
 
 export interface AuthModule {
@@ -19,12 +22,16 @@ export interface AuthModule {
   authService: AuthService;
   tokenService: ITokenService;
   userRepository: IUserRepository;
+  otpRepository: IOtpRepository;
 }
 
 export const createAuthModule = (deps?: AuthModuleDependencies): AuthModule => {
   const userRepository = deps?.userRepository ?? new MongoUserRepository();
   const tokenService = deps?.tokenService ?? new JwtTokenService();
-  const authService = new AuthService(userRepository, tokenService);
+  const otpRepository = deps?.otpRepository ?? new MongoOtpRepository();
+  const emailService = deps?.emailService ?? new EmailService();
+
+  const authService = new AuthService(userRepository, tokenService, otpRepository, emailService);
   const authController = new AuthController(authService);
   const router = createAuthRouter(authController);
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -35,5 +42,8 @@ export const createAuthModule = (deps?: AuthModuleDependencies): AuthModule => {
     authService,
     tokenService,
     userRepository,
+    otpRepository,
   };
 };
+
+export default createAuthModule;

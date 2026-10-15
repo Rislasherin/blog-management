@@ -9,6 +9,15 @@ process.env.JWT_SECRET = "your_super_secret_jwt_key_here";
 
 import type { IPost } from "../../src/modules/posts/types/post.types.js";
 
+vi.mock("../../src/modules/posts/cloudinary.storage.js", () => {
+  return {
+    CloudinaryImageStorage: class {
+      upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
+      delete = vi.fn().mockResolvedValue(undefined);
+    }
+  };
+});
+
 vi.mock("../../src/modules/posts/services/cloudinary-image.storage.js", () => {
   return {
     CloudinaryImageStorage: class {
@@ -59,6 +68,12 @@ const { MockMongoPostRepository } = vi.hoisted(() => {
     }
   }
   return { MockMongoPostRepository };
+});
+
+vi.mock("../../src/modules/posts/post.repository.js", () => {
+  return {
+    MongoPostRepository: MockMongoPostRepository
+  };
 });
 
 vi.mock("../../src/modules/posts/repositories/mongo-post.repository.js", () => {

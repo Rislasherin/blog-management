@@ -10,3 +10,10 @@ export interface LoginResponse {
 }
 
 export type RegisterResponse = User;
+
+export interface VerifyOtpPayload {
+  email: string;
+  code: string;
+  name: string;
+  password: string;
+}

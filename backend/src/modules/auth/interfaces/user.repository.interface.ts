@@ -1,1 +1,0 @@
-export * from "../domain/repositories/user.repository.interface.js";

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
-import logger from "../../infrastructure/logger/logger.js";
+import logger from "../../logger/logger.js";
 import mongoose from "mongoose";
 import multer from "multer";
 
