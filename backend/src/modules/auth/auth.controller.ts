@@ -1,6 +1,13 @@
 import type { Request, Response, NextFunction } from "express";
 import type { IAuthService } from "./auth.types.js";
-import type { RegisterInput, LoginInput, VerifyOtpInput } from "./auth.validator.js";
+import type {
+  RegisterInput,
+  LoginInput,
+  VerifyOtpInput,
+  ForgotPasswordInput,
+  VerifyResetOtpInput,
+  ResetPasswordInput,
+} from "./auth.validator.js";
 import logger from "../../logger/logger.js";
 
 export class AuthController {
@@ -51,6 +58,45 @@ export class AuthController {
         message: "Account verified and created",
         data: result,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  forgotPassword = async (
+    req: Request<{}, {}, ForgotPasswordInput>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const result = await this.authService.forgotPassword(req.body.email);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyResetOtp = async (
+    req: Request<{}, {}, VerifyResetOtpInput>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const result = await this.authService.verifyResetOtp(req.body.email, req.body.code);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (
+    req: Request<{}, {}, ResetPasswordInput>,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const result = await this.authService.resetPassword(req.body);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

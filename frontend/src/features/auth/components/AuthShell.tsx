@@ -5,7 +5,7 @@ interface AuthShellProps {
   title: string;
   subtitle: string;
   children: ReactNode;
-  footer: ReactNode;
+  footer?: ReactNode;
 }
 
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
@@ -28,7 +28,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
             <div className="mt-8">{children}</div>
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-muted">{footer}</p>
+        {footer ? <p className="mt-6 text-center text-sm text-muted">{footer}</p> : null}
       </div>
     </div>
   );

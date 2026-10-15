@@ -29,3 +29,34 @@ export const verifyOtpSchema = z
   .strict();
 
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+
+export const forgotPasswordSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+  })
+  .strict();
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const verifyResetOtpSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    code: z.string().length(6, "OTP must be exactly 6 digits"),
+  })
+  .strict();
+
+export type VerifyResetOtpInput = z.infer<typeof verifyResetOtpSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    code: z.string().length(6).optional(),
+    resetToken: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.code || data.resetToken), {
+    message: "Either verification code or reset token is required",
+    path: ["code"],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

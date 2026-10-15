@@ -66,6 +66,7 @@ export interface IUserRepository {
     email: string;
     password: string;
   }): Promise<IUser>;
+  updatePassword(email: string, passwordHash: string): Promise<IUser | null>;
 }
 
 export interface IOtpRepository {
@@ -87,6 +88,13 @@ export interface ITokenService {
   verifyAccessToken(token: string): AuthTokenPayload;
 }
 
+export interface ResetPasswordDTO {
+  email: string;
+  password: string;
+  code?: string | undefined;
+  resetToken?: string | undefined;
+}
+
 export interface IAuthService {
   initiateSignup(name: string, email: string, password: string): Promise<{ success: boolean; message: string }>;
   verifySignupOtp(email: string, code: string, name: string, password: string): Promise<{ id?: string | undefined; name: string; email: string }>;
@@ -94,4 +102,7 @@ export interface IAuthService {
   verifyOtp(dto: VerifyOtpDTO): Promise<{ id?: string | undefined; name: string; email: string }>;
   login(email: string, password: string): Promise<LoginResponseDTO>;
   loginDto(dto: LoginDTO): Promise<LoginResponseDTO>;
+  forgotPassword(email: string): Promise<{ success: boolean; message: string }>;
+  verifyResetOtp(email: string, code: string): Promise<{ success: boolean; message: string; resetToken?: string }>;
+  resetPassword(dto: ResetPasswordDTO): Promise<{ success: boolean; message: string }>;
 }

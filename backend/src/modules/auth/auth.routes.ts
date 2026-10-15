@@ -2,7 +2,14 @@ import { Router } from "express";
 import type { AuthController } from "./auth.controller.js";
 import { validate } from "../../shared/middleware/validate.middleware.js";
 import { authRateLimiter } from "../../shared/middleware/rateLimiter.middleware.js";
-import { registerSchema, loginSchema, verifyOtpSchema } from "./auth.validator.js";
+import {
+  registerSchema,
+  loginSchema,
+  verifyOtpSchema,
+  forgotPasswordSchema,
+  verifyResetOtpSchema,
+  resetPasswordSchema,
+} from "./auth.validator.js";
 
 export const createAuthRouter = (authController: AuthController): Router => {
   const router = Router();
@@ -26,6 +33,27 @@ export const createAuthRouter = (authController: AuthController): Router => {
     authRateLimiter,
     validate(loginSchema),
     authController.login
+  );
+
+  router.post(
+    "/forgot-password",
+    authRateLimiter,
+    validate(forgotPasswordSchema),
+    authController.forgotPassword
+  );
+
+  router.post(
+    "/verify-reset-otp",
+    authRateLimiter,
+    validate(verifyResetOtpSchema),
+    authController.verifyResetOtp
+  );
+
+  router.post(
+    "/reset-password",
+    authRateLimiter,
+    validate(resetPasswordSchema),
+    authController.resetPassword
   );
 
   return router;

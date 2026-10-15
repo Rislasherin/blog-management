@@ -13,6 +13,14 @@ export class MongoUserRepository implements IUserRepository {
   }): Promise<IUser> {
     return UserModel.create(userData);
   }
+
+  async updatePassword(email: string, password: string): Promise<IUser | null> {
+    return UserModel.findOneAndUpdate(
+      { email },
+      { $set: { password } },
+      { new: true }
+    ).exec();
+  }
 }
 
 export default MongoUserRepository;
