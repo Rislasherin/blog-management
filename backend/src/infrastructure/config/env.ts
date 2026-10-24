@@ -4,11 +4,16 @@ import dotenv from "dotenv";
 import { z } from "zod";
 
 // Ensure .env is loaded from process.cwd() and backend root directory
+const isTestEnv = process.env.NODE_ENV === "test";
 dotenv.config();
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const backendEnvPath = path.resolve(currentDir, "../../../.env");
-dotenv.config({ path: backendEnvPath, override: false });
+dotenv.config({ path: backendEnvPath, override: !isTestEnv });
+
+if (isTestEnv) {
+  process.env.NODE_ENV = "test";
+}
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
