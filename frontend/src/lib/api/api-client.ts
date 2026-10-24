@@ -47,7 +47,13 @@ async function fetchClient<T>(endpoint: string, options: FetchOptions = {}): Pro
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, data.message || "An unexpected error occurred");
+    const errorMsg = data && typeof data === "object" && "message" in data ? String(data.message) : "An unexpected error occurred";
+    throw new ApiError(response.status, errorMsg);
+  }
+
+  if (data && typeof data === "object" && "success" in data && data.success === false) {
+    const errorMsg = "message" in data ? String(data.message) : "Request failed";
+    throw new ApiError(response.status || 400, errorMsg);
   }
 
   return data;

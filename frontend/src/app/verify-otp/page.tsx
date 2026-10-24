@@ -108,17 +108,8 @@ function VerifyOtpContent() {
         await authService.forgotPassword(email);
         setSuccessMsg("A fresh reset code has been sent to your email.");
       } else {
-        const pendingReg = typeof window !== "undefined"
-          ? sessionStorage.getItem("pending_registration")
-          : null;
-        if (pendingReg) {
-          const parsed = JSON.parse(pendingReg);
-          await authService.register(parsed.name, email, parsed.password);
-          setSuccessMsg("A fresh signup verification code has been sent.");
-        } else {
-          setError("Session expired. Please sign up again.");
-          return;
-        }
+        await authService.resendOtp(email);
+        setSuccessMsg("A fresh signup verification code has been sent.");
       }
       setCountdown(60);
       setCode("");

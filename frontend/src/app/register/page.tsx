@@ -24,6 +24,19 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      setError("Please enter your full name (at least 2 characters).");
+      return;
+    }
+
+    if (!cleanEmail) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters long.");
       return;
@@ -37,13 +50,17 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await authService.register(name, email, password);
+      const response = await authService.register(cleanName, cleanEmail, password);
+      if (!response || response.success === false) {
+        setError(response?.message || "Failed to send verification code. Please check your email configuration.");
+        return;
+      }
       setStep("OTP");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError("An unexpected error occurred while sending verification email. Please try again.");
       }
     } finally {
       setLoading(false);

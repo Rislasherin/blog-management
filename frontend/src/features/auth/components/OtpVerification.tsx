@@ -73,7 +73,19 @@ export function OtpVerification({
     setResending(true);
 
     try {
-      await authService.register(name, email, password);
+      let response: { success: boolean; message: string };
+      try {
+        response = await authService.resendOtp(email);
+      } catch {
+        // Fallback to register if needed
+        response = await authService.register(name, email, password);
+      }
+
+      if (!response || response.success === false) {
+        setError(response?.message || "Failed to resend verification code.");
+        return;
+      }
+
       setSuccessMsg("A new verification code has been sent to your email.");
       setCountdown(60);
       setCode("");

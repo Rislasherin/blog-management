@@ -19,6 +19,10 @@ export const authService = {
     return apiClient.post<ApiResponse<{ id: string; name: string; email: string }>>("/auth/verify-otp", payload);
   },
 
+  resendOtp: async (email: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post<{ success: boolean; message: string }>("/auth/resend-otp", { email });
+  },
+
   forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post<{ success: boolean; message: string }>("/auth/forgot-password", { email });
   },
