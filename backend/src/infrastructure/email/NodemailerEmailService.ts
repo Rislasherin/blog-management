@@ -8,10 +8,12 @@ import { renderOtpEmailHtml, renderOtpEmailText } from "./templates/otp-email.te
 
 export class NodemailerEmailService implements IEmailService {
   private transporter: Transporter | null = null;
+  private readonly isCustomTransporter: boolean = false;
 
   constructor(customTransporter?: Transporter | null) {
     if (customTransporter !== undefined) {
       this.transporter = customTransporter;
+      this.isCustomTransporter = true;
     } else if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS) {
       // RFC standard SMTP ports: 465 requires direct SSL/TLS; 587/25/2525 requires STARTTLS
       let isSecure = env.SMTP_SECURE;
@@ -33,25 +35,44 @@ export class NodemailerEmailService implements IEmailService {
         isSecure = false;
       }
 
-      const cleanPass = env.SMTP_PASS.replace(/\s+/g, "");
-
-      this.transporter = nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: isSecure,
-        auth: {
-          user: env.SMTP_USER,
-          pass: cleanPass,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 15000,
-      });
+      this.transporter = this.createTransporterForPort(env.SMTP_PORT, isSecure);
     }
   }
 
-  async verifyConnection(): Promise<{ success: boolean; message: string }> {
-    if (!this.transporter) {
+  private createTransporterForPort(port: number, secure: boolean): Transporter {
+    const cleanPass = env.SMTP_PASS?.replace(/\s+/g, "") || "";
+    return nodemailer.createTransport({
+      host: env.SMTP_HOST || "smtp.gmail.com",
+      port,
+      secure,
+      auth: {
+        user: env.SMTP_USER,
+        pass: cleanPass,
+      },
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+    });
+  }
+
+  async verifyConnection(portOverride?: number, secureOverride?: boolean): Promise<{
+    success: boolean;
+    message: string;
+    details?: {
+      host: string;
+      port: number;
+      secure: boolean;
+      latencyMs?: number | undefined;
+      code?: string | undefined;
+    };
+  }> {
+    const port = portOverride ?? env.SMTP_PORT;
+    const isSecure = secureOverride ?? (port === 465 ? true : port === 587 ? false : (env.SMTP_SECURE ?? false));
+    const transporter = (portOverride !== undefined || !this.transporter)
+      ? this.createTransporterForPort(port, isSecure)
+      : this.transporter;
+
+    if (!transporter) {
       return {
         success: false,
         message:
@@ -59,11 +80,19 @@ export class NodemailerEmailService implements IEmailService {
       };
     }
 
+    const startTime = Date.now();
     try {
-      await this.transporter.verify();
+      await transporter.verify();
+      const latencyMs = Date.now() - startTime;
       return {
         success: true,
-        message: "SMTP server connection and credentials verified successfully.",
+        message: `SMTP server connection and credentials verified successfully on port ${port} (${isSecure ? "SSL/TLS" : "STARTTLS"}) in ${latencyMs}ms.`,
+        details: {
+          host: env.SMTP_HOST || "smtp.gmail.com",
+          port,
+          secure: isSecure,
+          latencyMs,
+        },
       };
     } catch (err: unknown) {
       const smtpErr = err as {
@@ -76,18 +105,29 @@ export class NodemailerEmailService implements IEmailService {
       const command = typeof smtpErr?.command === "string" ? smtpErr.command : undefined;
       const responseCode = typeof smtpErr?.responseCode === "number" ? smtpErr.responseCode : undefined;
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const latencyMs = Date.now() - startTime;
 
       logger.warn({
         msg: "SMTP connection verification failed",
+        port,
+        isSecure,
         errorCode,
         command,
         responseCode,
+        latencyMs,
         errorMessage,
       });
 
       return {
         success: false,
-        message: `SMTP connection verification failed: ${errorMessage}${errorCode ? ` [Code: ${errorCode}]` : ""}`,
+        message: `SMTP connection verification failed on port ${port}: ${errorMessage}${errorCode ? ` [Code: ${errorCode}]` : ""}`,
+        details: {
+          host: env.SMTP_HOST || "smtp.gmail.com",
+          port,
+          secure: isSecure,
+          latencyMs,
+          code: errorCode,
+        },
       };
     }
   }
@@ -109,26 +149,26 @@ export class NodemailerEmailService implements IEmailService {
       );
     }
 
+    let fromAddress: string;
+    if (env.EMAIL_FROM && env.EMAIL_FROM.includes("@")) {
+      fromAddress = env.EMAIL_FROM.includes("<")
+        ? env.EMAIL_FROM
+        : `BlogPlatform <${env.EMAIL_FROM}>`;
+    } else if (env.SMTP_USER) {
+      fromAddress = `BlogPlatform <${env.SMTP_USER}>`;
+    } else {
+      fromAddress = "BlogPlatform <noreply@blogmanagement.com>";
+    }
+
+    const mailOptions = {
+      from: fromAddress,
+      to: email,
+      subject: "Your BlogPlatform Verification Code",
+      text: renderOtpEmailText(code),
+      html: renderOtpEmailHtml(code),
+    };
+
     try {
-      let fromAddress: string;
-      if (env.EMAIL_FROM && env.EMAIL_FROM.includes("@")) {
-        fromAddress = env.EMAIL_FROM.includes("<")
-          ? env.EMAIL_FROM
-          : `BlogPlatform <${env.EMAIL_FROM}>`;
-      } else if (env.SMTP_USER) {
-        fromAddress = `BlogPlatform <${env.SMTP_USER}>`;
-      } else {
-        fromAddress = "BlogPlatform <noreply@blogmanagement.com>";
-      }
-
-      const mailOptions = {
-        from: fromAddress,
-        to: email,
-        subject: "Your BlogPlatform Verification Code",
-        text: renderOtpEmailText(code),
-        html: renderOtpEmailHtml(code),
-      };
-
       const info = await this.transporter.sendMail(mailOptions);
       if (info && Array.isArray(info.rejected) && info.rejected.length > 0) {
         throw new Error(`Recipient address was rejected by SMTP server: ${info.rejected.join(", ")}`);
@@ -214,7 +254,7 @@ export class NodemailerEmailService implements IEmailService {
         );
       }
 
-      // Check for Connection / Timeout / TLS mismatch (ETIMEDOUT, ECONNREFUSED, ESOCKET, ENOTFOUND)
+      // Single controlled fallback if connection timed out (ETIMEDOUT / ECONNREFUSED) on dual-port Gmail SMTP
       const isConnectionError =
         errorCode === "ETIMEDOUT" ||
         errorCode === "ECONNREFUSED" ||
@@ -223,9 +263,39 @@ export class NodemailerEmailService implements IEmailService {
         rawMessage.includes("Greeting never received") ||
         rawMessage.includes("wrong version number");
 
+      if (isConnectionError && !this.isCustomTransporter && (env.SMTP_HOST === "smtp.gmail.com" || !env.SMTP_HOST)) {
+        const altPort = env.SMTP_PORT === 465 ? 587 : 465;
+        const altSecure = altPort === 465;
+
+        logger.warn({
+          msg: `SMTP port ${env.SMTP_PORT} connection timed out. Attempting single fallback on alternate port ${altPort} (${altSecure ? "SSL/TLS" : "STARTTLS"})...`,
+          recipient: email,
+          originalErrorCode: errorCode,
+        });
+
+        try {
+          const fallbackTransporter = this.createTransporterForPort(altPort, altSecure);
+          const fallbackInfo = await fallbackTransporter.sendMail(mailOptions);
+          if (fallbackInfo && (!Array.isArray(fallbackInfo.rejected) || fallbackInfo.rejected.length === 0)) {
+            logger.info({
+              msg: `OTP verification email dispatched successfully via fallback port ${altPort}. Port ${env.SMTP_PORT} appears blocked or throttled by network/firewall. Consider setting SMTP_PORT=${altPort} and SMTP_SECURE=${altSecure} in backend/.env.`,
+              recipient: email,
+            });
+            return;
+          }
+        } catch (fallbackErr: unknown) {
+          logger.warn({
+            msg: `Fallback attempt on alternate port ${altPort} also encountered an error`,
+            fallbackError: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+          });
+        }
+      }
+
       if (isConnectionError) {
+        const altPort = (port === 465 ? 587 : 465);
+        const altSecure = altPort === 465;
         const devHint = isDevOrTest
-          ? ` (SMTP connection failed: ${errorCode || "TIMEOUT"} on ${hostname || "SMTP"}:${port || "PORT"}. Verify SMTP_HOST, SMTP_PORT, and SMTP_SECURE)`
+          ? ` (SMTP connection failed: ${errorCode || "TIMEOUT"} on ${hostname || "SMTP"}:${port || "PORT"}. Your network, ISP, or firewall may be blocking outbound port ${port}. Try switching SMTP_PORT=${altPort} and SMTP_SECURE=${altSecure} in backend/.env)`
           : "";
         throw new AppError(
           HttpStatus.INTERNAL_SERVER_ERROR,

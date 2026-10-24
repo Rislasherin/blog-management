@@ -1,3 +1,4 @@
+import dns from "node:dns";
 import { env } from "../infrastructure/config/env.js";
 import { NodemailerEmailService as EmailService } from "../infrastructure/email/NodemailerEmailService.js";
 
@@ -9,15 +10,15 @@ async function runDiagnostic() {
   const host = env.SMTP_HOST || "(not set)";
   const port = env.SMTP_PORT;
   const isSecure = env.SMTP_SECURE !== undefined ? env.SMTP_SECURE : env.SMTP_PORT === 465;
-  const user = env.SMTP_USER ? `${env.SMTP_USER.slice(0, 2)}***@${env.SMTP_USER.split("@")[1] || "..."}` : "(not set)";
+  const user = env.SMTP_USER ? `${env.SMTP_USER.slice(0, 3)}***@${env.SMTP_USER.split("@")[1] || "..."}` : "(not set)";
   const passConfigured = Boolean(env.SMTP_PASS);
   const passLength = env.SMTP_PASS ? env.SMTP_PASS.replace(/\s+/g, "").length : 0;
   const from = env.EMAIL_FROM || (env.SMTP_USER ? `BlogPlatform <${env.SMTP_USER}>` : "(default)");
 
-  console.log("Loaded Configuration:");
+  console.log("1. Loaded Configuration from backend/.env:");
   console.log(`- SMTP_HOST:   ${host}`);
   console.log(`- SMTP_PORT:   ${port}`);
-  console.log(`- SMTP_SECURE: ${isSecure}`);
+  console.log(`- SMTP_SECURE: ${isSecure} (${isSecure ? "Implicit SSL/TLS" : "STARTTLS"})`);
   console.log(`- SMTP_USER:   ${user}`);
   console.log(`- SMTP_PASS:   ${passConfigured ? `[Configured: ${passLength} characters]` : "(not set)"}`);
   console.log(`- EMAIL_FROM:  ${from}\n`);
@@ -34,22 +35,51 @@ async function runDiagnostic() {
     process.exit(1);
   }
 
+  // 2. DNS Resolution
+  console.log("2. Checking DNS Resolution for", host, "...");
+  await new Promise<void>((resolve) => {
+    dns.lookup(host, { all: true }, (err, addresses) => {
+      if (err) {
+        console.error(`❌ DNS Lookup failed for ${host}:`, err.message);
+      } else {
+        console.log(`✅ Resolved ${addresses.length} address(es):`, addresses.map((a) => `${a.address} (IPv${a.family})`).join(", "));
+      }
+      resolve();
+    });
+  });
+
   const emailService = new EmailService();
 
-  console.log("⏳ Verifying SMTP server connection and credentials...");
+  console.log(`\n3. Verifying SMTP server connection on configured port ${port} (${isSecure ? "SSL/TLS" : "STARTTLS"})...`);
   const result = await emailService.verifyConnection();
 
-  if (!result.success) {
-    console.error(`\n❌ SMTP Verification FAILED:`);
+  if (result.success) {
+    console.log(`\n✅ ${result.message}\n`);
+  } else {
+    console.error(`\n❌ Configured SMTP Verification FAILED on port ${port}:`);
     console.error(`   ${result.message}\n`);
-    console.log("Troubleshooting Tips:");
-    console.log("1. For Gmail: Verify you are using a 16-character App Password (from https://myaccount.google.com/apppasswords), NOT your normal Google account password.");
-    console.log("2. 2-Step Verification must be ENABLED on your Google Account to create an App Password.");
-    console.log("3. Ensure your local firewall or network allows outbound connections on port 465 or 587.");
-    process.exit(1);
-  }
 
-  console.log(`\n✅ ${result.message}\n`);
+    // Test alternate port (port 587 if 465, or 465 if 587) to diagnose firewall/ISP blocks
+    const altPort = port === 465 ? 587 : 465;
+    const altSecure = altPort === 465;
+    console.log(`⏳ Testing alternate port ${altPort} (${altSecure ? "SSL/TLS" : "STARTTLS"}) to diagnose network/firewall blocking...`);
+    const altResult = await emailService.verifyConnection(altPort, altSecure);
+
+    if (altResult.success) {
+      console.log(`\n💡 DIAGNOSIS: Alternate port ${altPort} CONNECTED SUCCESSFULLY!`);
+      console.log(`   Your network, ISP, or hosting firewall is likely BLOCKING outbound port ${port}.`);
+      console.log(`   RECOMMENDATION: Update your backend/.env to:`);
+      console.log(`     SMTP_PORT=${altPort}`);
+      console.log(`     SMTP_SECURE=${altSecure}\n`);
+    } else {
+      console.log(`\n❌ Alternate port ${altPort} also failed:`);
+      console.log(`   ${altResult.message}\n`);
+      console.log("Troubleshooting Tips:");
+      console.log("1. For Gmail: Verify you are using a 16-character App Password (from https://myaccount.google.com/apppasswords), NOT your normal Google account password.");
+      console.log("2. 2-Step Verification must be ENABLED on your Google Account to create an App Password.");
+      console.log("3. Ensure your local firewall, VPN, antivirus (e.g. email shield), or router allows outbound SMTP connections.");
+    }
+  }
 
   // Check if a test send was requested via --send=<email>
   const sendArg = process.argv.find((arg) => arg.startsWith("--send=") || arg === "--send");
@@ -64,7 +94,7 @@ async function runDiagnostic() {
   }
 
   if (testRecipient) {
-    console.log(`⏳ Sending test OTP email to: ${testRecipient}...`);
+    console.log(`\n4. Sending live test OTP email to: ${testRecipient}...`);
     try {
       const testCode = Math.floor(100000 + Math.random() * 900000).toString();
       await emailService.sendOtp(testRecipient, testCode);

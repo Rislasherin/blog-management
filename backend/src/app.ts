@@ -67,6 +67,18 @@ export const createApp = (container: Container = defaultContainer): Express => {
   app.use("/api/auth", container.authRouter);
   app.use("/api/posts", container.postRouter);
 
+  // Development-only internal diagnostic route for SMTP verification (strictly unmounted in production)
+  if (env.NODE_ENV === "development") {
+    app.get("/api/dev/smtp-verify", async (_req, res) => {
+      const emailService = container.emailService as any;
+      if (emailService && typeof emailService.verifyConnection === "function") {
+        const result = await emailService.verifyConnection();
+        return res.status(result.success ? 200 : 503).json(result);
+      }
+      return res.status(500).json({ success: false, message: "EmailService verifyConnection unavailable" });
+    });
+  }
+
   // Handle unknown routes
   app.use((req, res) => {
     res.status(404).json({
