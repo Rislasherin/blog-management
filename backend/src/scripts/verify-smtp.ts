@@ -1,5 +1,5 @@
-import { env } from "../config/env.js";
-import { EmailService } from "../modules/auth/email.service.js";
+import { env } from "../infrastructure/config/env.js";
+import { NodemailerEmailService as EmailService } from "../infrastructure/email/NodemailerEmailService.js";
 
 async function runDiagnostic() {
   console.log("\n==========================================");

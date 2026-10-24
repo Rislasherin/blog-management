@@ -3,36 +3,22 @@ import request from "supertest";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import app from "../../src/app.js";
-import { PostModel } from "../../src/modules/posts/post.model.js";
+import { PostModel } from "../../src/infrastructure/database/models/PostModel.js";
 import dotenv from "dotenv";
 process.env.JWT_SECRET = "your_super_secret_jwt_key_here";
 
-import type { IPost } from "../../src/modules/posts/types/post.types.js";
+import type { IPost } from "../../src/domain/entities/Post.js";
 
-vi.mock("../../src/modules/posts/cloudinary.storage.js", () => {
-  return {
-    CloudinaryImageStorage: class {
-      upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
-      delete = vi.fn().mockResolvedValue(undefined);
-    }
-  };
-});
 
-vi.mock("../../src/modules/posts/services/cloudinary-image.storage.js", () => {
+vi.mock("../../src/infrastructure/storage/CloudinaryStorageService.js", () => {
+  class MockStorage {
+    upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
+    delete = vi.fn().mockResolvedValue(undefined);
+  }
   return {
-    CloudinaryImageStorage: class {
-      upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
-      delete = vi.fn().mockResolvedValue(undefined);
-    }
-  };
-});
-
-vi.mock("../../src/modules/posts/infrastructure/storage/cloudinary-image.storage.js", () => {
-  return {
-    CloudinaryImageStorage: class {
-      upload = vi.fn().mockResolvedValue("https://mock-image.url/test.jpg");
-      delete = vi.fn().mockResolvedValue(undefined);
-    }
+    CloudinaryStorageService: MockStorage,
+    CloudinaryImageStorage: MockStorage,
+    default: MockStorage,
   };
 });
 
@@ -70,21 +56,11 @@ const { MockMongoPostRepository } = vi.hoisted(() => {
   return { MockMongoPostRepository };
 });
 
-vi.mock("../../src/modules/posts/post.repository.js", () => {
-  return {
-    MongoPostRepository: MockMongoPostRepository
-  };
-});
 
-vi.mock("../../src/modules/posts/repositories/mongo-post.repository.js", () => {
+vi.mock("../../src/infrastructure/database/repositories/MongoPostRepository.js", () => {
   return {
-    MongoPostRepository: MockMongoPostRepository
-  };
-});
-
-vi.mock("../../src/modules/posts/infrastructure/persistence/repositories/mongo-post.repository.js", () => {
-  return {
-    MongoPostRepository: MockMongoPostRepository
+    MongoPostRepository: MockMongoPostRepository,
+    default: MockMongoPostRepository,
   };
 });
 

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import PostService from "../../src/modules/posts/post.service.js";
-import AppError from "../../src/shared/errors/AppError.js";
-import type { IPostRepository, IImageStorage, IPost } from "../../src/modules/posts/post.types.js";
+import { PostService } from "../../src/application/services/PostService.js";
+import { AppError } from "../../src/domain/errors/AppError.js";
+import type { IPostRepository } from "../../src/domain/repositories/IPostRepository.js";
+import type { IPost } from "../../src/domain/entities/Post.js";
+import type { IFileStorageService as IImageStorage } from "../../src/application/interfaces/IFileStorageService.js";
 
 const mockRepository = {
   create: vi.fn(),
@@ -71,7 +73,7 @@ describe("PostService", () => {
       vi.mocked(mockRepository.create).mockResolvedValue({ ...mockPost, imageUrl: "https://image.url" });
 
       const input = { title: "Test", content: "Content" };
-      const file = {} as Express.Multer.File;
+      const file = { buffer: Buffer.from("test") };
       
       await service.createPost(input, "user1", file);
       
@@ -88,7 +90,7 @@ describe("PostService", () => {
       vi.mocked(mockStorage.upload).mockResolvedValue("https://image.url");
       vi.mocked(mockRepository.create).mockRejectedValue(new Error("DB Error"));
 
-      const file = {} as Express.Multer.File;
+      const file = { buffer: Buffer.from("test") };
       
       await expect(service.createPost({ title: "T", content: "C" }, "user1", file)).rejects.toThrow("DB Error");
       
@@ -148,7 +150,7 @@ describe("PostService", () => {
     it("should NOT call image upload if non-owner attempts to upload image", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockPost);
 
-      const file = {} as Express.Multer.File;
+      const file = { buffer: Buffer.from("test") };
       await expect(service.updatePost("post1", "hacker", { title: "New" }, file)).rejects.toMatchObject({ statusCode: 403 });
       
       expect(mockStorage.upload).not.toHaveBeenCalled();
@@ -160,7 +162,7 @@ describe("PostService", () => {
       vi.mocked(mockStorage.upload).mockResolvedValue("https://new.url");
       vi.mocked(mockRepository.update).mockResolvedValue({ ...postWithImage, imageUrl: "https://new.url" });
 
-      const file = {} as Express.Multer.File;
+      const file = { buffer: Buffer.from("test") };
       await service.updatePost("post1", "user1", { title: "New" }, file);
 
       expect(mockStorage.upload).toHaveBeenCalledWith(file);
@@ -174,7 +176,7 @@ describe("PostService", () => {
       vi.mocked(mockStorage.upload).mockResolvedValue("https://new.url");
       vi.mocked(mockRepository.update).mockRejectedValue(new Error("DB Error"));
 
-      const file = {} as Express.Multer.File;
+      const file = { buffer: Buffer.from("test") };
       await expect(service.updatePost("post1", "user1", { title: "New" }, file)).rejects.toThrow("DB Error");
 
       expect(mockStorage.delete).toHaveBeenCalledWith("https://new.url");

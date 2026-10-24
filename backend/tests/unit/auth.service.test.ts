@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AuthService } from "../../src/modules/auth/auth.service.js";
-import { AppError } from "../../src/shared/errors/AppError.js";
-import type {
-  IUserRepository,
-  ITokenService,
-  IOtpRepository,
-  IEmailService,
-  IUser,
-} from "../../src/modules/auth/auth.types.js";
+import { AuthService } from "../../src/application/services/AuthService.js";
+import { AppError } from "../../src/domain/errors/AppError.js";
+import type { IUserRepository } from "../../src/domain/repositories/IUserRepository.js";
+import type { IOtpRepository } from "../../src/domain/repositories/IOtpRepository.js";
+import type { IUser } from "../../src/domain/entities/User.js";
+import type { ITokenService } from "../../src/application/interfaces/ITokenService.js";
+import type { IEmailService } from "../../src/application/interfaces/IEmailService.js";
+import { BcryptPasswordHasher } from "../../src/infrastructure/security/BcryptPasswordHasher.js";
 
 describe("AuthService Email & OTP Flow Tests", () => {
   let mockUserRepo: IUserRepository;
@@ -45,7 +44,10 @@ describe("AuthService Email & OTP Flow Tests", () => {
       mockUserRepo,
       mockTokenService,
       mockOtpRepo,
-      mockEmailService
+      mockEmailService,
+      undefined,
+      undefined,
+      new BcryptPasswordHasher()
     );
   });
 

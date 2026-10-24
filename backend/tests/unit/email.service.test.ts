@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EmailService } from "../../src/modules/auth/email.service.js";
-import { AppError } from "../../src/shared/errors/AppError.js";
+import { NodemailerEmailService as EmailService } from "../../src/infrastructure/email/NodemailerEmailService.js";
+import { AppError } from "../../src/domain/errors/AppError.js";
 import type { Transporter } from "nodemailer";
 
 describe("EmailService Unit Tests", () => {

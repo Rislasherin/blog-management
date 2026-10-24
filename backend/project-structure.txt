@@ -1,0 +1,154 @@
+backend
+|-- src
+|   |-- application
+|   |   |-- dtos
+|   |   |   |-- auth.dto.ts
+|   |   |   `-- post.dto.ts
+|   |   |-- interfaces
+|   |   |   |-- IEmailService.ts
+|   |   |   |-- IFileStorageService.ts
+|   |   |   |-- ILogger.ts
+|   |   |   |-- IPasswordHasher.ts
+|   |   |   `-- ITokenService.ts
+|   |   |-- services
+|   |   |   |-- AuthService.ts
+|   |   |   |-- IAuthService.ts
+|   |   |   |-- IPostService.ts
+|   |   |   `-- PostService.ts
+|   |   `-- use-cases
+|   |       |-- auth
+|   |       |   |-- implementations
+|   |       |   |   |-- LoginUseCase.ts
+|   |       |   |   |-- RegisterUserUseCase.ts
+|   |       |   |   |-- RequestPasswordResetUseCase.ts
+|   |       |   |   |-- ResendOtpUseCase.ts
+|   |       |   |   |-- ResetPasswordUseCase.ts
+|   |       |   |   |-- VerifyOtpUseCase.ts
+|   |       |   |   `-- VerifyResetOtpUseCase.ts
+|   |       |   `-- interfaces
+|   |       |       |-- ILoginUseCase.ts
+|   |       |       |-- IRegisterUserUseCase.ts
+|   |       |       |-- IRequestPasswordResetUseCase.ts
+|   |       |       |-- IResendOtpUseCase.ts
+|   |       |       |-- IResetPasswordUseCase.ts
+|   |       |       |-- IVerifyOtpUseCase.ts
+|   |       |       `-- IVerifyResetOtpUseCase.ts
+|   |       `-- posts
+|   |           |-- implementations
+|   |           |   |-- CreatePostUseCase.ts
+|   |           |   |-- DeletePostUseCase.ts
+|   |           |   |-- GetPostByIdUseCase.ts
+|   |           |   |-- GetPostsByAuthorUseCase.ts
+|   |           |   |-- GetPostsUseCase.ts
+|   |           |   `-- UpdatePostUseCase.ts
+|   |           `-- interfaces
+|   |               |-- ICreatePostUseCase.ts
+|   |               |-- IDeletePostUseCase.ts
+|   |               |-- IGetPostByIdUseCase.ts
+|   |               |-- IGetPostsByAuthorUseCase.ts
+|   |               |-- IGetPostsUseCase.ts
+|   |               `-- IUpdatePostUseCase.ts
+|   |-- domain
+|   |   |-- entities
+|   |   |   |-- Otp.ts
+|   |   |   |-- Post.ts
+|   |   |   `-- User.ts
+|   |   |-- enums
+|   |   |   |-- HttpStatus.enum.ts
+|   |   |   `-- OtpPurpose.enum.ts
+|   |   |-- errors
+|   |   |   |-- AppError.ts
+|   |   |   `-- DomainError.ts
+|   |   |-- repositories
+|   |   |   |-- IOtpRepository.ts
+|   |   |   |-- IPostRepository.ts
+|   |   |   `-- IUserRepository.ts
+|   |   `-- value-objects
+|   |       `-- Pagination.ts
+|   |-- infrastructure
+|   |   |-- di
+|   |   |   `-- container.ts
+|   |   |-- config
+|   |   |   `-- env.ts
+|   |   |-- database
+|   |   |   |-- connection
+|   |   |   |   `-- connection.ts
+|   |   |   |-- mappers
+|   |   |   |   |-- OtpMapper.ts
+|   |   |   |   |-- PostMapper.ts
+|   |   |   |   `-- UserMapper.ts
+|   |   |   |-- models
+|   |   |   |   |-- OtpModel.ts
+|   |   |   |   |-- PostModel.ts
+|   |   |   |   `-- UserModel.ts
+|   |   |   `-- repositories
+|   |   |       |-- MongoOtpRepository.ts
+|   |   |       |-- MongoPostRepository.ts
+|   |   |       `-- MongoUserRepository.ts
+|   |   |-- email
+|   |   |   |-- templates
+|   |   |   |   `-- otp-email.template.ts
+|   |   |   `-- NodemailerEmailService.ts
+|   |   |-- logging
+|   |   |   `-- PinoLogger.ts
+|   |   |-- security
+|   |   |   |-- BcryptPasswordHasher.ts
+|   |   |   `-- JwtTokenService.ts
+|   |   `-- storage
+|   |       `-- CloudinaryStorageService.ts
+|   |-- presentation
+|   |   `-- http
+|   |       |-- controllers
+|   |       |   |-- AuthController.ts
+|   |       |   `-- PostController.ts
+|   |       |-- middleware
+|   |       |   |-- auth.middleware.ts
+|   |       |   |-- error.middleware.ts
+|   |       |   |-- rateLimiter.middleware.ts
+|   |       |   |-- upload.middleware.ts
+|   |       |   `-- validate.middleware.ts
+|   |       |-- routes
+|   |       |   |-- auth.routes.ts
+|   |       |   `-- post.routes.ts
+|   |       `-- validators
+|   |           |-- auth.validator.ts
+|   |           `-- post.validator.ts
+|   |-- scripts
+|   |   `-- verify-smtp.ts
+|   |-- shared
+|   |   |-- constants
+|   |   |   `-- index.ts
+|   |   |-- types
+|   |   |   |-- express.d.ts
+|   |   |   `-- index.ts
+|   |   |-- utils
+|   |   |   `-- index.ts
+|   |   `-- index.ts
+|   |-- app.ts
+|   |-- custom.d.ts
+|   `-- server.ts
+|-- tests
+|   |-- integration
+|   |   |-- post.routes.test.ts
+|   |   `-- post.validator.test.ts
+|   `-- unit
+|       |-- use-cases
+|       |   |-- auth.use-cases.test.ts
+|       |   `-- post.use-cases.test.ts
+|       |-- auth.service.test.ts
+|       |-- clean-architecture.auth.test.ts
+|       |-- clean-architecture.post.test.ts
+|       |-- controllers.test.ts
+|       |-- email.service.test.ts
+|       |-- factories-and-composition.test.ts
+|       |-- mappers.test.ts
+|       `-- post.service.test.ts
+|-- .env
+|-- .env.example
+|-- .gitignore
+|-- nodemon.json
+|-- package.json
+|-- package-lock.json
+|-- project-structure.txt
+|-- README.md
+`-- tsconfig.json

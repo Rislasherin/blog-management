@@ -1,11 +1,11 @@
 import app from "./app.js";
-import { connectDB, disconnectDB } from "./config/database.js";
-import logger from "./logger/logger.js";
-import { env } from "./config/env.js";
+import { connectDB, disconnectDB } from "./infrastructure/database/connection/connection.js";
+import logger from "./infrastructure/logging/PinoLogger.js";
+import { env } from "./infrastructure/config/env.js";
 
 const PORT = env.PORT;
 
-const startServer = async () => {
+export const startServer = async () => {
   await connectDB();
 
   const server = app.listen(PORT, () => {
@@ -40,6 +40,11 @@ const startServer = async () => {
     logger.fatal({ err: error }, "Uncaught Exception detected. Terminating process.");
     process.exit(1);
   });
+
+  return server;
 };
 
+// Start server on execution
 startServer();
+
+export default startServer;

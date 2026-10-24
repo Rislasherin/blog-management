@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPostSchema, updatePostSchema, paginationSchema } from "../../src/modules/posts/post.validator.js";
+import { createPostSchema, updatePostSchema, paginationSchema } from "../../src/presentation/http/validators/post.validator.js";
 
 describe("Validation", () => {
   describe("createPostSchema", () => {

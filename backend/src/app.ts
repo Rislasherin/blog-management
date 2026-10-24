@@ -1,85 +1,85 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors, { type CorsOptions } from "cors";
 import helmet from "helmet";
 
-import { env } from "./config/env.js";
-import { globalRateLimiter } from "./shared/middleware/rateLimiter.middleware.js";
-import { createAuthModule } from "./modules/auth/auth.module.js";
-import { createPostModule } from "./modules/posts/posts.module.js";
-import { errorMiddleware } from "./shared/middleware/error.middleware.js";
+import { env } from "./infrastructure/config/env.js";
+import { globalRateLimiter } from "./presentation/http/middleware/rateLimiter.middleware.js";
+import { errorMiddleware } from "./presentation/http/middleware/error.middleware.js";
+import { defaultContainer, type Container } from "./infrastructure/di/container.js";
 
-const app = express();
+/**
+ * Creates and configures the Express HTTP Application.
+ * Injects pre-wired routers and middlewares from the Composition Root.
+ */
+export const createApp = (container: Container = defaultContainer): Express => {
+  const app = express();
 
-// Trust reverse proxy (Vercel, Render, Railway, AWS ALB, Nginx, etc.)
-// Required for express-rate-limit and accurate client IP resolution
-app.set("trust proxy", 1);
+  // Trust reverse proxy (Vercel, Render, Railway, AWS ALB, Nginx, etc.)
+  app.set("trust proxy", 1);
 
-app.use(helmet());
+  app.use(helmet());
 
-const clientUrls = env.CLIENT_URL.split(",")
-  .map((url) => url.trim())
-  .filter(Boolean);
+  const clientUrls = env.CLIENT_URL.split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
 
-const allowedOrigins = [
-  ...clientUrls,
-  "http://localhost:3000",
-  "http://localhost:3001",
-].filter((origin): origin is string => Boolean(origin));
+  const allowedOrigins = [
+    ...clientUrls,
+    "http://localhost:3000",
+    "http://localhost:3001",
+  ].filter((origin): origin is string => Boolean(origin));
 
-const corsOptions: CorsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests without an Origin header, such as curl or server-to-server requests.
-    // Allow configured origins and development/test environments.
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      env.NODE_ENV === "development" ||
-      env.NODE_ENV === "test"
-    ) {
-      return callback(null, true);
-    }
+  const corsOptions: CorsOptions = {
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        env.NODE_ENV === "development" ||
+        env.NODE_ENV === "test"
+      ) {
+        return callback(null, true);
+      }
 
-    return callback(
-      new Error("CORS policy does not allow access from this origin."),
-    );
-  },
-  credentials: true,
+      return callback(
+        new Error("CORS policy does not allow access from this origin."),
+      );
+    },
+    credentials: true,
+  };
+
+  app.use(cors(corsOptions));
+  app.use(express.json());
+
+  // Global API rate limiting
+  app.use(globalRateLimiter);
+
+  // Health check endpoint
+  app.get("/health", (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: "Blog Management API is running",
+      environment: env.NODE_ENV,
+      uptime: process.uptime(),
+    });
+  });
+
+  // Mount feature routers wired by Composition Root
+  app.use("/api/auth", container.authRouter);
+  app.use("/api/posts", container.postRouter);
+
+  // Handle unknown routes
+  app.use((req, res) => {
+    res.status(404).json({
+      success: false,
+      message: "Route not found",
+    });
+  });
+
+  // Global error handling
+  app.use(errorMiddleware);
+
+  return app;
 };
 
-app.use(cors(corsOptions));
-
-app.use(express.json());
-
-// Global API rate limiting
-app.use(globalRateLimiter);
-
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Blog Management API is running",
-    environment: env.NODE_ENV,
-    uptime: process.uptime(),
-  });
-});
-
-const authModule = createAuthModule();
-
-const postModule = createPostModule({
-  authMiddleware: authModule.authMiddleware,
-});
-
-app.use("/api/auth", authModule.router);
-app.use("/api/posts", postModule.router);
-
-// Handle unknown routes
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
-});
-
-// Global error handling
-app.use(errorMiddleware);
-
+export const app = createApp();
 export default app;
