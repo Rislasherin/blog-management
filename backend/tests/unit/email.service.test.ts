@@ -25,21 +25,43 @@ describe("EmailService Unit Tests", () => {
     expect(mailArgs.html).toContain("123456");
   });
 
-  it("should throw AppError(500) if transporter.sendMail fails due to SMTP auth failure or timeout", async () => {
-    const mockSendMail = vi.fn().mockRejectedValue(new Error("535 5.7.8 Username and Password not accepted"));
+  it("should throw AppError(500) if transporter.sendMail fails due to SMTP auth failure", async () => {
+    const authError = new Error("535 5.7.8 Username and Password not accepted") as any;
+    authError.code = "EAUTH";
+    authError.responseCode = 535;
+
+    const mockSendMail = vi.fn().mockRejectedValue(authError);
     const mockTransporter = {
       sendMail: mockSendMail,
     } as unknown as Transporter;
 
     const emailService = new EmailService(mockTransporter);
 
-    await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toThrow(AppError);
     await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
       statusCode: 500,
+      message: expect.stringContaining("SMTP authentication failed"),
     });
   });
 
-  it("should throw AppError(500) if provider rejects the recipient address", async () => {
+  it("should throw AppError(500) if transporter.sendMail fails due to connection timeout", async () => {
+    const connError = new Error("Greeting never received") as any;
+    connError.code = "ETIMEDOUT";
+    connError.command = "CONN";
+
+    const mockSendMail = vi.fn().mockRejectedValue(connError);
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const emailService = new EmailService(mockTransporter);
+
+    await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+      statusCode: 500,
+      message: expect.stringContaining("SMTP connection failed"),
+    });
+  });
+
+  it("should throw AppError(400) if provider rejects the recipient address", async () => {
     const mockSendMail = vi.fn().mockRejectedValue(new Error("550 5.1.1 User unknown / recipient rejected"));
     const mockTransporter = {
       sendMail: mockSendMail,
@@ -47,10 +69,13 @@ describe("EmailService Unit Tests", () => {
 
     const emailService = new EmailService(mockTransporter);
 
-    await expect(emailService.sendOtp("invalid-user@example.com", "123456")).rejects.toThrow(AppError);
+    await expect(emailService.sendOtp("invalid-user@example.com", "123456")).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("could not be delivered to this email address"),
+    });
   });
 
-  it("should throw AppError(500) if provider returns rejected recipient in sendMail info", async () => {
+  it("should throw AppError(400) if provider returns rejected recipient in sendMail info", async () => {
     const mockSendMail = vi.fn().mockResolvedValue({
       messageId: "test-id",
       accepted: [],
@@ -62,7 +87,10 @@ describe("EmailService Unit Tests", () => {
 
     const emailService = new EmailService(mockTransporter);
 
-    await expect(emailService.sendOtp("invalid@example.com", "123456")).rejects.toThrow(AppError);
+    await expect(emailService.sendOtp("invalid@example.com", "123456")).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("could not be delivered to this email address"),
+    });
   });
 
   it("should throw AppError(500) when SMTP is not configured, preventing false success", async () => {
