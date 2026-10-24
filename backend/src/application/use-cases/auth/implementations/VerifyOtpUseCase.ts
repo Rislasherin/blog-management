@@ -15,9 +15,9 @@ export class VerifyOtpUseCase implements IVerifyOtpUseCase {
   ) {}
 
   async execute(dto: VerifyOtpDTO): Promise<VerifyOtpResponseDTO> {
-    const email = dto.email;
-    const code = dto.otp || (dto as { code?: string }).code || "";
-    const name = dto.name || "";
+    const email = dto.email.toLowerCase().trim();
+    const code = (dto.otp || (dto as { code?: string }).code || "").trim();
+    const name = (dto.name || "").trim();
     const password = dto.password || "";
 
     const otp = await this.otpRepository.findValid(email, OtpPurpose.SIGNUP);

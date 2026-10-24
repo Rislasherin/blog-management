@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RegisterUserUseCase } from "../../../src/application/use-cases/auth/implementations/RegisterUserUseCase.js";
+import { ResendOtpUseCase } from "../../../src/application/use-cases/auth/implementations/ResendOtpUseCase.js";
 import { VerifyOtpUseCase } from "../../../src/application/use-cases/auth/implementations/VerifyOtpUseCase.js";
 import { LoginUseCase } from "../../../src/application/use-cases/auth/implementations/LoginUseCase.js";
 import { RequestPasswordResetUseCase } from "../../../src/application/use-cases/auth/implementations/RequestPasswordResetUseCase.js";
@@ -68,6 +69,22 @@ describe("Auth Use Cases (Clean Architecture Unit Tests)", () => {
       expect(mockEmailService.sendOtp).toHaveBeenCalledTimes(1);
     });
 
+    it("should delete prior pending signup OTPs before creating a new one", async () => {
+      vi.mocked(mockUserRepo.findByEmail).mockResolvedValue(null);
+
+      const useCase = new RegisterUserUseCase(mockUserRepo, mockOtpRepo, mockEmailService, hasher);
+      await useCase.execute({
+        name: "Alice",
+        email: "alice@example.com",
+        password: "password123",
+      });
+
+      expect(mockOtpRepo.deleteMany).toHaveBeenCalledWith({
+        email: "alice@example.com",
+        purpose: "signup",
+      });
+    });
+
     it("should reject signup when email is already taken", async () => {
       vi.mocked(mockUserRepo.findByEmail).mockResolvedValue({
         id: "user-1",
@@ -79,6 +96,34 @@ describe("Auth Use Cases (Clean Architecture Unit Tests)", () => {
       await expect(
         useCase.execute({ name: "Alice", email: "alice@example.com", password: "pwd" })
       ).rejects.toThrow(AppError);
+    });
+  });
+
+  describe("ResendOtpUseCase", () => {
+    it("should delete prior pending OTPs, generate new code, and send email", async () => {
+      vi.mocked(mockUserRepo.findByEmail).mockResolvedValue(null);
+
+      const useCase = new ResendOtpUseCase(mockUserRepo, mockOtpRepo, mockEmailService, hasher);
+      const res = await useCase.execute({ email: "alice@example.com" });
+
+      expect(res.success).toBe(true);
+      expect(mockOtpRepo.deleteMany).toHaveBeenCalledWith({
+        email: "alice@example.com",
+        purpose: "signup",
+      });
+      expect(mockOtpRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockEmailService.sendOtp).toHaveBeenCalledTimes(1);
+    });
+
+    it("should reject resend if user is already registered and verified", async () => {
+      vi.mocked(mockUserRepo.findByEmail).mockResolvedValue({
+        id: "user-1",
+        name: "Alice",
+        email: "alice@example.com",
+      } as IUser);
+
+      const useCase = new ResendOtpUseCase(mockUserRepo, mockOtpRepo, mockEmailService, hasher);
+      await expect(useCase.execute({ email: "alice@example.com" })).rejects.toThrow(AppError);
     });
   });
 

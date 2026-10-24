@@ -105,6 +105,29 @@ describe("Controllers Unit Tests (Clean Architecture Use-Case Injection)", () =>
         data: { id: "u1", name: "User", email: "u@test.com" },
       });
     });
+
+    it("resendOtp() should delegate to resendOtpUseCase and return 200", async () => {
+      const resendOtpUseCase = { execute: vi.fn().mockResolvedValue({ success: true, message: "OTP resent" }) };
+      const ctrl = new AuthController({
+        registerUserUseCase,
+        loginUseCase,
+        verifyOtpUseCase,
+        resendOtpUseCase,
+        requestPasswordResetUseCase,
+        verifyResetOtpUseCase,
+        resetPasswordUseCase,
+      });
+
+      const req = { body: { email: "bob@example.com" } } as Request<any, any, any>;
+      const res = createMockRes();
+      const next: NextFunction = vi.fn();
+
+      await ctrl.resendOtp(req, res, next);
+
+      expect(resendOtpUseCase.execute).toHaveBeenCalledWith(req.body);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, message: "OTP resent" });
+    });
   });
 
   describe("PostController", () => {

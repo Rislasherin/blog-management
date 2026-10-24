@@ -180,6 +180,7 @@ export const createContainer = (overrides?: ContainerDependencies): Container =>
       registerUserUseCase,
       loginUseCase,
       verifyOtpUseCase,
+      resendOtpUseCase,
       requestPasswordResetUseCase,
       verifyResetOtpUseCase,
       resetPasswordUseCase,

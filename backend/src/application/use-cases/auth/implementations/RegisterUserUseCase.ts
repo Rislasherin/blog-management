@@ -17,10 +17,14 @@ export class RegisterUserUseCase implements IRegisterUserUseCase {
   ) {}
 
   async execute(dto: RegisterUserDTO): Promise<RegisterUserResponseDTO> {
-    const { email } = dto;
+    const email = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError(HttpStatus.CONFLICT, "User already exists with this email");
+    }
+
+    if (typeof this.otpRepository.deleteMany === "function") {
+      await this.otpRepository.deleteMany({ email, purpose: OtpPurpose.SIGNUP }).catch(() => {});
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();

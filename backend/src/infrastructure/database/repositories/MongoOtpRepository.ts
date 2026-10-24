@@ -33,7 +33,9 @@ export class MongoOtpRepository implements IOtpRepository {
       purpose,
       used: false,
       expiresAt: { $gt: now },
-    }).exec();
+    })
+      .sort({ createdAt: -1 })
+      .exec();
     return doc ? OtpMapper.toDomain(doc) : null;
   }
 

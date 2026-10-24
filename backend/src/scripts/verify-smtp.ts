@@ -12,7 +12,7 @@ async function runDiagnostic() {
   const user = env.SMTP_USER ? `${env.SMTP_USER.slice(0, 2)}***@${env.SMTP_USER.split("@")[1] || "..."}` : "(not set)";
   const passConfigured = Boolean(env.SMTP_PASS);
   const passLength = env.SMTP_PASS ? env.SMTP_PASS.replace(/\s+/g, "").length : 0;
-  const from = env.EMAIL_FROM;
+  const from = env.EMAIL_FROM || (env.SMTP_USER ? `BlogPlatform <${env.SMTP_USER}>` : "(default)");
 
   console.log("Loaded Configuration:");
   console.log(`- SMTP_HOST:   ${host}`);

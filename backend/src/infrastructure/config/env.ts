@@ -29,7 +29,7 @@ const envSchema = z.object({
     }, z.boolean().optional()),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().default("BlogPlatform <noreply@blogmanagement.com>"),
+  EMAIL_FROM: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

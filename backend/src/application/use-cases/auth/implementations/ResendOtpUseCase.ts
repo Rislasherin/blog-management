@@ -17,10 +17,14 @@ export class ResendOtpUseCase implements IResendOtpUseCase {
   ) {}
 
   async execute(dto: ResendOtpDTO): Promise<ResendOtpResponseDTO> {
-    const { email } = dto;
+    const email = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError(HttpStatus.CONFLICT, "User already registered and verified");
+    }
+
+    if (typeof this.otpRepository.deleteMany === "function") {
+      await this.otpRepository.deleteMany({ email, purpose: OtpPurpose.SIGNUP }).catch(() => {});
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();

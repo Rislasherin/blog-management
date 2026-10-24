@@ -6,6 +6,7 @@ import {
   registerSchema,
   loginSchema,
   verifyOtpSchema,
+  resendOtpSchema,
   forgotPasswordSchema,
   verifyResetOtpSchema,
   resetPasswordSchema,
@@ -26,6 +27,13 @@ export const createAuthRouter = (authController: AuthController): Router => {
     authRateLimiter,
     validate(verifyOtpSchema),
     authController.verifyOtp
+  );
+
+  router.post(
+    "/resend-otp",
+    authRateLimiter,
+    validate(resendOtpSchema),
+    authController.resendOtp
   );
 
   router.post(

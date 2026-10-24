@@ -50,6 +50,21 @@ describe("EmailService Unit Tests", () => {
     await expect(emailService.sendOtp("invalid-user@example.com", "123456")).rejects.toThrow(AppError);
   });
 
+  it("should throw AppError(500) if provider returns rejected recipient in sendMail info", async () => {
+    const mockSendMail = vi.fn().mockResolvedValue({
+      messageId: "test-id",
+      accepted: [],
+      rejected: ["invalid@example.com"],
+    });
+    const mockTransporter = {
+      sendMail: mockSendMail,
+    } as unknown as Transporter;
+
+    const emailService = new EmailService(mockTransporter);
+
+    await expect(emailService.sendOtp("invalid@example.com", "123456")).rejects.toThrow(AppError);
+  });
+
   it("should throw AppError(500) when SMTP is not configured, preventing false success", async () => {
     // Transporter is null
     const emailService = new EmailService(null as unknown as Transporter);

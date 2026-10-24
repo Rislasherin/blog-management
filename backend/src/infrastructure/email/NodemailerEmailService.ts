@@ -70,9 +70,16 @@ export class NodemailerEmailService implements IEmailService {
     }
 
     try {
-      const fromAddress = env.EMAIL_FROM.includes("<")
-        ? env.EMAIL_FROM
-        : `BlogPlatform <${env.EMAIL_FROM}>`;
+      let fromAddress: string;
+      if (env.EMAIL_FROM && env.EMAIL_FROM.includes("@")) {
+        fromAddress = env.EMAIL_FROM.includes("<")
+          ? env.EMAIL_FROM
+          : `BlogPlatform <${env.EMAIL_FROM}>`;
+      } else if (env.SMTP_USER) {
+        fromAddress = `BlogPlatform <${env.SMTP_USER}>`;
+      } else {
+        fromAddress = "BlogPlatform <noreply@blogmanagement.com>";
+      }
 
       const mailOptions = {
         from: fromAddress,
@@ -82,7 +89,14 @@ export class NodemailerEmailService implements IEmailService {
         html: renderOtpEmailHtml(code),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      const info = await this.transporter.sendMail(mailOptions);
+      if (info && Array.isArray(info.rejected) && info.rejected.length > 0) {
+        throw new Error(`Recipient address was rejected by SMTP server: ${info.rejected.join(", ")}`);
+      }
+      if (info && Array.isArray(info.accepted) && info.accepted.length === 0) {
+        throw new Error(`SMTP server did not accept delivery for recipient: ${email}`);
+      }
+
       logger.info({
         msg: "OTP verification email dispatched successfully",
         recipient: email,

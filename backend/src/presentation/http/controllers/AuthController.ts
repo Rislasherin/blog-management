@@ -6,6 +6,7 @@ import type { IVerifyOtpUseCase } from "../../../application/use-cases/auth/inte
 import type { IRequestPasswordResetUseCase } from "../../../application/use-cases/auth/interfaces/IRequestPasswordResetUseCase.js";
 import type { IVerifyResetOtpUseCase } from "../../../application/use-cases/auth/interfaces/IVerifyResetOtpUseCase.js";
 import type { IResetPasswordUseCase } from "../../../application/use-cases/auth/interfaces/IResetPasswordUseCase.js";
+import type { IResendOtpUseCase } from "../../../application/use-cases/auth/interfaces/IResendOtpUseCase.js";
 import type { ILogger } from "../../../application/interfaces/ILogger.js";
 import type { ResetPasswordDTO } from "../../../application/dtos/auth.dto.js";
 import { HttpStatus } from "../../../domain/enums/HttpStatus.enum.js";
@@ -13,6 +14,7 @@ import type {
   RegisterInput,
   LoginInput,
   VerifyOtpInput,
+  ResendOtpInput,
   ForgotPasswordInput,
   VerifyResetOtpInput,
   ResetPasswordInput,
@@ -29,16 +31,18 @@ export interface AuthControllerDependencies {
   registerUserUseCase: IRegisterUserUseCase;
   loginUseCase: ILoginUseCase;
   verifyOtpUseCase: IVerifyOtpUseCase;
+  resendOtpUseCase?: IResendOtpUseCase | undefined;
   requestPasswordResetUseCase: IRequestPasswordResetUseCase;
   verifyResetOtpUseCase: IVerifyResetOtpUseCase;
   resetPasswordUseCase: IResetPasswordUseCase;
-  logger?: ILogger;
+  logger?: ILogger | undefined;
 }
 
 export class AuthController {
   private readonly registerUserUseCase: IRegisterUserUseCase;
   private readonly loginUseCase: ILoginUseCase;
   private readonly verifyOtpUseCase: IVerifyOtpUseCase;
+  private readonly resendOtpUseCase?: IResendOtpUseCase | undefined;
   private readonly requestPasswordResetUseCase: IRequestPasswordResetUseCase;
   private readonly verifyResetOtpUseCase: IVerifyResetOtpUseCase;
   private readonly resetPasswordUseCase: IResetPasswordUseCase;
@@ -52,6 +56,7 @@ export class AuthController {
       this.registerUserUseCase = depsOrService.registerUserUseCase;
       this.loginUseCase = depsOrService.loginUseCase;
       this.verifyOtpUseCase = depsOrService.verifyOtpUseCase;
+      this.resendOtpUseCase = depsOrService.resendOtpUseCase;
       this.requestPasswordResetUseCase = depsOrService.requestPasswordResetUseCase;
       this.verifyResetOtpUseCase = depsOrService.verifyResetOtpUseCase;
       this.resetPasswordUseCase = depsOrService.resetPasswordUseCase;
@@ -59,6 +64,9 @@ export class AuthController {
     } else {
       const service = depsOrService;
       this.registerUserUseCase = { execute: (dto) => service.register(dto) };
+      this.resendOtpUseCase = {
+        execute: (dto) => service.register({ name: "", email: dto.email, password: "" }),
+      };
       this.loginUseCase = {
         execute: (dto) =>
           service.loginDto ? service.loginDto(dto) : service.login(dto.email, dto.password),
@@ -126,6 +134,27 @@ export class AuthController {
         message: "Account verified and created",
         data: result,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendOtp = async (
+    req: Request<Record<string, never>, unknown, ResendOtpInput>,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      if (!this.resendOtpUseCase) {
+        const result = await this.registerUserUseCase.execute({
+          name: "",
+          email: req.body.email,
+        });
+        res.status(HttpStatus.OK).json(result);
+        return;
+      }
+      const result = await this.resendOtpUseCase.execute(req.body);
+      res.status(HttpStatus.OK).json(result);
     } catch (error) {
       next(error);
     }
