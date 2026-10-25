@@ -6,7 +6,7 @@ import { MongoOtpRepository } from "../database/repositories/MongoOtpRepository.
 import { MongoPostRepository } from "../database/repositories/MongoPostRepository.js";
 import { JwtTokenService } from "../security/JwtTokenService.js";
 import { BcryptPasswordHasher } from "../security/BcryptPasswordHasher.js";
-import { ResendEmailService } from "../email/ResendEmailService.js";
+import { NodemailerEmailService } from "../email/NodemailerEmailService.js";
 import { CloudinaryStorageService } from "../storage/CloudinaryStorageService.js";
 import { logger as defaultLogger } from "../logging/PinoLogger.js";
 
@@ -132,7 +132,7 @@ export const createContainer = (overrides?: ContainerDependencies): Container =>
   const postRepository = overrides?.postRepository ?? new MongoPostRepository();
   const tokenService = overrides?.tokenService ?? new JwtTokenService();
   const passwordHasher = overrides?.passwordHasher ?? new BcryptPasswordHasher();
-  const emailService = overrides?.emailService ?? new ResendEmailService();
+  const emailService = overrides?.emailService ?? new NodemailerEmailService();
   const imageStorage = overrides?.imageStorage ?? new CloudinaryStorageService();
 
   // 2. Application Layer Use Cases

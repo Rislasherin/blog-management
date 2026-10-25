@@ -1,36 +1,53 @@
 import { env } from "../infrastructure/config/env.js";
-import { ResendEmailService as EmailService } from "../infrastructure/email/ResendEmailService.js";
+import { NodemailerEmailService as EmailService } from "../infrastructure/email/NodemailerEmailService.js";
 
 async function runDiagnostic() {
   console.log("\n==========================================");
-  console.log("   Resend Email Delivery Diagnostic Tool  ");
+  console.log("   Gmail SMTP Email Delivery Diagnostic   ");
   console.log("==========================================\n");
 
-  const hasKey = Boolean(env.RESEND_API_KEY);
-  const keyLen = env.RESEND_API_KEY ? env.RESEND_API_KEY.length : 0;
-  const keyPrefix = env.RESEND_API_KEY ? `${env.RESEND_API_KEY.slice(0, 5)}...` : "(not set)";
-  const from = env.EMAIL_FROM || "BlogPlatform <onboarding@resend.dev>";
+  const hasHost = Boolean(env.SMTP_HOST);
+  const hasUser = Boolean(env.SMTP_USER);
+  const hasPass = Boolean(env.SMTP_PASS);
+  const passLength = env.SMTP_PASS ? env.SMTP_PASS.replace(/\s+/g, "").length : 0;
+  const userPreview = env.SMTP_USER
+    ? `${env.SMTP_USER.slice(0, 3)}***@${env.SMTP_USER.split("@")[1] || "gmail.com"}`
+    : "(not set)";
 
-  console.log("1. Loaded Configuration from backend environment:");
-  console.log(`- RESEND_API_KEY: ${hasKey ? `[Configured: ${keyPrefix} (${keyLen} chars)]` : "❌ (not set)"}`);
-  console.log(`- EMAIL_FROM:     ${from}\n`);
+  const effectivePort = env.SMTP_PORT || 587;
+  const isSecure = env.SMTP_SECURE !== undefined ? env.SMTP_SECURE : effectivePort === 465;
+  const from = env.EMAIL_FROM || (env.SMTP_USER ? `BlogPlatform <${env.SMTP_USER}>` : "(default)");
 
-  if (!env.RESEND_API_KEY) {
-    console.error("❌ ERROR: Missing required RESEND_API_KEY in environment variables.");
-    console.error("Please add RESEND_API_KEY=re_your_api_key in backend/.env or your Render Dashboard.\n");
+  console.log("1. Loaded SMTP Configuration from backend environment:");
+  console.log(`- SMTP_HOST:   ${env.SMTP_HOST || "smtp.gmail.com"}`);
+  console.log(`- SMTP_PORT:   ${effectivePort}`);
+  console.log(`- SMTP_SECURE: ${isSecure} (${isSecure ? "SSL/TLS" : "STARTTLS"})`);
+  console.log(`- SMTP_USER:   ${hasUser ? `[Configured: ${userPreview}]` : "❌ (not set)"}`);
+  console.log(`- SMTP_PASS:   ${hasPass ? `[Configured: ${passLength} characters]` : "❌ (not set)"}`);
+  console.log(`- EMAIL_FROM:  ${from}\n`);
+
+  if (!hasUser || !hasPass) {
+    console.error("❌ ERROR: Missing required SMTP credentials in environment variables.");
+    console.error("Please add SMTP_USER and SMTP_PASS in backend/.env or your hosting environment dashboard.\n");
     process.exit(1);
   }
 
   const emailService = new EmailService();
 
-  console.log("2. Verifying Resend API connection and credentials via HTTPS...");
+  console.log(`2. Verifying SMTP connection to ${env.SMTP_HOST || "smtp.gmail.com"}:${effectivePort}...`);
   const result = await emailService.verifyConnection();
 
   if (result.success) {
     console.log(`\n✅ ${result.message}\n`);
   } else {
-    console.error(`\n❌ Resend Verification FAILED:`);
+    console.error(`\n❌ SMTP Connection Verification FAILED:`);
     console.error(`   ${result.message}\n`);
+    if (result.details?.code === "ETIMEDOUT" || result.details?.code === "ECONNREFUSED" || result.details?.code === "ESOCKET") {
+      console.warn("⚠️  NOTE ON HOSTING RESTRICTIONS:");
+      console.warn("   Render Free plans block outbound SMTP connections on ports 25, 465, and 587.");
+      console.warn("   If this backend is running on Render Free, connection timeouts are expected.");
+      console.warn("   A paid compute plan or an SMTP-permissive host is required for live delivery.\n");
+    }
     process.exit(1);
   }
 
