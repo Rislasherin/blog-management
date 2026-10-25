@@ -1,132 +1,214 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NodemailerEmailService as EmailService } from "../../src/infrastructure/email/NodemailerEmailService.js";
+import { ResendEmailService } from "../../src/infrastructure/email/ResendEmailService.js";
 import { AppError } from "../../src/domain/errors/AppError.js";
-import type { Transporter } from "nodemailer";
+import { createContainer } from "../../src/infrastructure/di/container.js";
+import type { Resend } from "resend";
 
-describe("EmailService Unit Tests", () => {
+describe("ResendEmailService Unit Tests", () => {
+  let mockResend: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResend = {
+      emails: {
+        send: vi.fn(),
+      },
+      domains: {
+        list: vi.fn(),
+      },
+    };
   });
 
-  it("should successfully send an OTP email when a valid transporter is configured", async () => {
-    const mockSendMail = vi.fn().mockResolvedValue({ messageId: "test-id" });
-    const mockTransporter = {
-      sendMail: mockSendMail,
-    } as unknown as Transporter;
+  describe("1. Successful OTP email submission through mocked Resend client", () => {
+    it("should successfully send an OTP email with correct recipient, subject, and rendered templates", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: { id: "resend-msg-12345" },
+        error: null,
+      });
 
-    const emailService = new EmailService(mockTransporter);
-    await emailService.sendOtp("test@example.com", "123456");
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+      await emailService.sendOtp("test@example.com", "123456");
 
-    expect(mockSendMail).toHaveBeenCalledTimes(1);
-    const mailArgs = mockSendMail.mock.calls[0][0];
-    expect(mailArgs.to).toBe("test@example.com");
-    expect(mailArgs.subject).toContain("Verification Code");
-    expect(mailArgs.text).toContain("123456");
-    expect(mailArgs.html).toContain("123456");
-  });
+      expect(mockResend.emails.send).toHaveBeenCalledTimes(1);
+      const sendArgs = mockResend.emails.send.mock.calls[0][0];
 
-  it("should throw AppError(500) if transporter.sendMail fails due to SMTP auth failure", async () => {
-    const authError = new Error("535 5.7.8 Username and Password not accepted") as any;
-    authError.code = "EAUTH";
-    authError.responseCode = 535;
-
-    const mockSendMail = vi.fn().mockRejectedValue(authError);
-    const mockTransporter = {
-      sendMail: mockSendMail,
-    } as unknown as Transporter;
-
-    const emailService = new EmailService(mockTransporter);
-
-    await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
-      statusCode: 500,
-      message: expect.stringContaining("SMTP authentication failed"),
+      expect(sendArgs.to).toBe("test@example.com");
+      expect(sendArgs.from).toContain("BlogPlatform");
+      expect(sendArgs.subject).toBe("Your BlogPlatform Verification Code");
+      expect(sendArgs.text).toContain("123456");
+      expect(sendArgs.html).toContain("123456");
     });
   });
 
-  it("should throw AppError(500) if transporter.sendMail fails due to connection timeout", async () => {
-    const connError = new Error("Greeting never received") as any;
-    connError.code = "ETIMEDOUT";
-    connError.command = "CONN";
+  describe("2. Resend API errors and rejected requests", () => {
+    it("should throw AppError(400) when Resend returns a validation error for invalid recipient", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: null,
+        error: {
+          name: "validation_error",
+          message: "The 'to' field contains an invalid email address.",
+          statusCode: 422,
+        },
+      });
 
-    const mockSendMail = vi.fn().mockRejectedValue(connError);
-    const mockTransporter = {
-      sendMail: mockSendMail,
-    } as unknown as Transporter;
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
 
-    const emailService = new EmailService(mockTransporter);
+      await expect(emailService.sendOtp("invalid-address", "123456")).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("could not be delivered to this email address"),
+      });
+    });
 
-    await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
-      statusCode: 500,
-      message: expect.stringContaining("SMTP connection failed"),
+    it("should throw AppError(403) when Resend test sandbox restricts sending to third-party recipients", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: null,
+        error: {
+          name: "forbidden",
+          message: "You can only send testing emails to your own email address. To send to others, verify a domain.",
+          statusCode: 403,
+        },
+      });
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+
+      await expect(emailService.sendOtp("someone_else@gmail.com", "123456")).rejects.toMatchObject({
+        statusCode: 403,
+        message: expect.stringContaining("Resend test sandbox only permits delivery to the account owner"),
+      });
+    });
+
+    it("should throw AppError(429) when Resend returns rate limit exceeded", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: null,
+        error: {
+          name: "rate_limit_exceeded",
+          message: "Too many requests. Please slow down.",
+          statusCode: 429,
+        },
+      });
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 429,
+        message: expect.stringContaining("rate limit exceeded"),
+      });
+    });
+
+    it("should throw AppError(500) when Resend returns authentication failure", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: null,
+        error: {
+          name: "api_key_invalid",
+          message: "API key is invalid",
+          statusCode: 401,
+        },
+      });
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 500,
+        message: expect.stringContaining("Email service authentication error"),
+      });
+    });
+
+    it("should throw AppError(500) if Resend reports success but returns no message ID", async () => {
+      mockResend.emails.send.mockResolvedValue({
+        data: null,
+        error: null,
+      });
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 500,
+        message: expect.stringContaining("Resend did not return a message ID"),
+      });
+    });
+
+    it("should catch unexpected network/SDK rejection and convert to AppError(500)", async () => {
+      mockResend.emails.send.mockRejectedValue(new Error("Network connection reset"));
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 500,
+        message: expect.stringContaining("Network connection reset"),
+      });
     });
   });
 
-  it("should throw AppError(400) if provider rejects the recipient address", async () => {
-    const mockSendMail = vi.fn().mockRejectedValue(new Error("550 5.1.1 User unknown / recipient rejected"));
-    const mockTransporter = {
-      sendMail: mockSendMail,
-    } as unknown as Transporter;
+  describe("3. Missing API key handling", () => {
+    it("should throw AppError(500) when Resend client is not initialized, preventing false success", async () => {
+      const emailService = new ResendEmailService(null);
 
-    const emailService = new EmailService(mockTransporter);
-
-    await expect(emailService.sendOtp("invalid-user@example.com", "123456")).rejects.toMatchObject({
-      statusCode: 400,
-      message: expect.stringContaining("could not be delivered to this email address"),
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toThrow(AppError);
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 500,
+        message: expect.stringContaining("Email delivery is not configured on the server"),
+      });
     });
   });
 
-  it("should throw AppError(400) if provider returns rejected recipient in sendMail info", async () => {
-    const mockSendMail = vi.fn().mockResolvedValue({
-      messageId: "test-id",
-      accepted: [],
-      rejected: ["invalid@example.com"],
-    });
-    const mockTransporter = {
-      sendMail: mockSendMail,
-    } as unknown as Transporter;
-
-    const emailService = new EmailService(mockTransporter);
-
-    await expect(emailService.sendOtp("invalid@example.com", "123456")).rejects.toMatchObject({
-      statusCode: 400,
-      message: expect.stringContaining("could not be delivered to this email address"),
+  describe("4. Sender address resolution & verification rules", () => {
+    it("should fall back to onboarding@resend.dev when sender is a public webmail domain", () => {
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+      // Even if EMAIL_FROM had gmail.com, resolveSenderAddress enforces safe fallback
+      expect(emailService.senderAddress).toBe("BlogPlatform <onboarding@resend.dev>");
     });
   });
 
-  it("should throw AppError(500) when SMTP is not configured, preventing false success", async () => {
-    // Transporter is null
-    const emailService = new EmailService(null as unknown as Transporter);
+  describe("5. verifyConnection diagnostics", () => {
+    it("should return success: true when Resend API responds with valid domain list", async () => {
+      mockResend.domains.list.mockResolvedValue({
+        data: { data: [] },
+        error: null,
+      });
 
-    await expect(emailService.sendOtp("dev@example.com", "654321")).rejects.toThrow(AppError);
-    await expect(emailService.sendOtp("dev@example.com", "654321")).rejects.toMatchObject({
-      statusCode: 500,
-      message: expect.stringContaining("Email delivery is not configured"),
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+      const result = await emailService.verifyConnection();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain("Resend API key verified successfully");
+    });
+
+    it("should return success: false when Resend API returns an error", async () => {
+      mockResend.domains.list.mockResolvedValue({
+        data: null,
+        error: { message: "Invalid API key provided" },
+      });
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+      const result = await emailService.verifyConnection();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("Invalid API key provided");
+    });
+
+    it("should return success: false when Resend client is null", async () => {
+      const emailService = new ResendEmailService(null);
+      const result = await emailService.verifyConnection();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("RESEND_API_KEY is not configured");
+    });
+
+    it("should return success: false when Resend network call throws", async () => {
+      mockResend.domains.list.mockRejectedValue(new Error("DNS lookup failure"));
+
+      const emailService = new ResendEmailService(mockResend as unknown as Resend);
+      const result = await emailService.verifyConnection();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("DNS lookup failure");
     });
   });
 
-  it("should return success when verifyConnection succeeds", async () => {
-    const mockVerify = vi.fn().mockResolvedValue(true);
-    const mockTransporter = {
-      verify: mockVerify,
-    } as unknown as Transporter;
-
-    const emailService = new EmailService(mockTransporter);
-    const result = await emailService.verifyConnection();
-
-    expect(result.success).toBe(true);
-    expect(result.message).toContain("verified successfully");
-  });
-
-  it("should return failure details when verifyConnection fails", async () => {
-    const mockVerify = vi.fn().mockRejectedValue(new Error("Connection refused on port 465"));
-    const mockTransporter = {
-      verify: mockVerify,
-    } as unknown as Transporter;
-
-    const emailService = new EmailService(mockTransporter);
-    const result = await emailService.verifyConnection();
-
-    expect(result.success).toBe(false);
-    expect(result.message).toContain("Connection refused on port 465");
+  describe("6. Dependency Injection Container", () => {
+    it("should instantiate ResendEmailService by default in createContainer", () => {
+      const container = createContainer();
+      expect(container.emailService).toBeInstanceOf(ResendEmailService);
+    });
   });
 });
