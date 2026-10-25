@@ -4,7 +4,7 @@ import { z } from "zod";
  * Standard email validator: trims, lowercases, checks RFC email format and max length.
  */
 export const emailValidator = z
-  .string({ required_error: "Email is required", invalid_type_error: "Email must be a string" })
+  .string({ error: "Email is required" })
   .trim()
   .toLowerCase()
   .min(1, "Email is required")
@@ -15,7 +15,7 @@ export const emailValidator = z
  * Standard name validator: trims, enforces 2-100 characters, rejects whitespace-only, restricts characters.
  */
 export const nameValidator = z
-  .string({ required_error: "Name is required", invalid_type_error: "Name must be a string" })
+  .string({ error: "Name is required" })
   .trim()
   .min(2, "Name must be at least 2 characters long")
   .max(100, "Name must not exceed 100 characters")
@@ -26,7 +26,7 @@ export const nameValidator = z
  * Note: password itself is not trimmed to avoid altering intentional characters.
  */
 export const passwordValidator = z
-  .string({ required_error: "Password is required", invalid_type_error: "Password must be a string" })
+  .string({ error: "Password is required" })
   .min(8, "Password must be at least 8 characters long")
   .max(128, "Password must not exceed 128 characters")
   .refine((val) => val.trim().length > 0, {
@@ -37,7 +37,7 @@ export const passwordValidator = z
  * 6-digit numeric OTP validator.
  */
 export const otpCodeValidator = z
-  .string({ required_error: "Verification code is required", invalid_type_error: "Verification code must be a string" })
+  .string({ error: "Verification code is required" })
   .trim()
   .length(6, "Verification code must be exactly 6 digits")
   .regex(/^\d{6}$/, "Verification code must contain only digits");
@@ -51,7 +51,7 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: emailValidator,
   password: z
-    .string({ required_error: "Password is required", invalid_type_error: "Password must be a string" })
+    .string({ error: "Password is required" })
     .min(1, "Password is required")
     .max(128, "Password must not exceed 128 characters"),
 });
