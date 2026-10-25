@@ -6,6 +6,9 @@ import type { IPasswordHasher } from "../../../interfaces/IPasswordHasher.js";
 import type { LoginDTO } from "../../../dtos/auth.dto.js";
 import type { ILoginUseCase, LoginResponseDTO } from "../interfaces/ILoginUseCase.js";
 
+// Static valid bcrypt hash (cost 12) used to equalize timing when user is not found
+const DUMMY_HASH = "$2a$12$e80yqZ6V6XwE40gW3VlM2O6yA6E7e0h.GkJb6l1N2Q4p5S6u7V8w9";
+
 export class LoginUseCase implements ILoginUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
@@ -14,13 +17,17 @@ export class LoginUseCase implements ILoginUseCase {
   ) {}
 
   async execute(dto: LoginDTO): Promise<LoginResponseDTO> {
-    const { email, password } = dto;
-    const user = await this.userRepository.findByEmail(email);
-    if (!user || !user.password) {
+    const email = (dto.email || "").toLowerCase().trim();
+    const password = dto.password || "";
+
+    if (!email || !password) {
       throw new AppError(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
 
-    if (!password) {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user || !user.password) {
+      // Execute dummy compare to prevent timing-based user enumeration
+      await this.passwordHasher.compare(password, DUMMY_HASH);
       throw new AppError(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
 

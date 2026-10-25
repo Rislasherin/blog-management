@@ -1,44 +1,113 @@
 import { z } from "zod";
 
+/**
+ * Standard email validator: trims, lowercases, checks RFC email format and max length.
+ */
+export const emailValidator = z
+  .string({ required_error: "Email is required", invalid_type_error: "Email must be a string" })
+  .trim()
+  .toLowerCase()
+  .min(1, "Email is required")
+  .max(254, "Email must not exceed 254 characters")
+  .email("Invalid email address");
+
+/**
+ * Standard name validator: trims, enforces 2-100 characters, rejects whitespace-only, restricts characters.
+ */
+export const nameValidator = z
+  .string({ required_error: "Name is required", invalid_type_error: "Name must be a string" })
+  .trim()
+  .min(2, "Name must be at least 2 characters long")
+  .max(100, "Name must not exceed 100 characters")
+  .regex(/^[a-zA-Z\s.'-]+$/, "Name can only contain letters, spaces, hyphens, and apostrophes");
+
+/**
+ * Standard password validator: enforces 8-128 characters, rejects whitespace-only.
+ * Note: password itself is not trimmed to avoid altering intentional characters.
+ */
+export const passwordValidator = z
+  .string({ required_error: "Password is required", invalid_type_error: "Password must be a string" })
+  .min(8, "Password must be at least 8 characters long")
+  .max(128, "Password must not exceed 128 characters")
+  .refine((val) => val.trim().length > 0, {
+    message: "Password cannot be empty or whitespace only",
+  });
+
+/**
+ * 6-digit numeric OTP validator.
+ */
+export const otpCodeValidator = z
+  .string({ required_error: "Verification code is required", invalid_type_error: "Verification code must be a string" })
+  .trim()
+  .length(6, "Verification code must be exactly 6 digits")
+  .regex(/^\d{6}$/, "Verification code must contain only digits");
+
 export const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters long").trim(),
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
+  name: nameValidator,
+  email: emailValidator,
+  password: passwordValidator,
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-  password: z.string().min(1, "Password is required"),
+  email: emailValidator,
+  password: z
+    .string({ required_error: "Password is required", invalid_type_error: "Password must be a string" })
+    .min(1, "Password is required")
+    .max(128, "Password must not exceed 128 characters"),
 });
 
-export const verifyOtpSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-  code: z.string().length(6, "OTP must be exactly 6 digits").regex(/^\d+$/, "OTP must contain only digits"),
-  name: z.string().min(2, "Name must be at least 2 characters long").trim(),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
-});
+export const verifyOtpSchema = z
+  .object({
+    email: emailValidator,
+    code: otpCodeValidator.optional(),
+    otp: otpCodeValidator.optional(),
+    name: nameValidator,
+    password: passwordValidator,
+  })
+  .refine((data) => data.code !== undefined || data.otp !== undefined, {
+    message: "Verification code is required",
+    path: ["code"],
+  })
+  .transform((data) => ({
+    ...data,
+    code: data.code || data.otp!,
+    otp: data.otp || data.code!,
+  }));
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  email: emailValidator,
 });
 
-export const verifyResetOtpSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-  code: z.string().length(6, "Reset code must be exactly 6 digits").regex(/^\d+$/, "Reset code must contain only digits"),
-});
+export const verifyResetOtpSchema = z
+  .object({
+    email: emailValidator,
+    code: otpCodeValidator.optional(),
+    otp: otpCodeValidator.optional(),
+  })
+  .refine((data) => data.code !== undefined || data.otp !== undefined, {
+    message: "Verification code is required",
+    path: ["code"],
+  })
+  .transform((data) => ({
+    ...data,
+    code: data.code || data.otp!,
+    otp: data.otp || data.code!,
+  }));
 
-export const resetPasswordSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
-  code: z.string().length(6, "Reset code must be exactly 6 digits").regex(/^\d+$/, "Reset code must contain only digits").optional(),
-  resetToken: z.string().optional(),
-}).refine((data) => data.code || data.resetToken, {
-  message: "Either verification code or reset token must be provided",
-  path: ["code"],
-});
+export const resetPasswordSchema = z
+  .object({
+    email: emailValidator,
+    password: passwordValidator,
+    code: otpCodeValidator.optional(),
+    resetToken: z.string().trim().optional(),
+  })
+  .refine((data) => data.code || data.resetToken, {
+    message: "Either verification code or reset token must be provided",
+    path: ["code"],
+  });
 
 export const resendOtpSchema = z.object({
-  email: z.string().email("Invalid email address").toLowerCase().trim(),
+  email: emailValidator,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

@@ -9,18 +9,42 @@ import type { ResendOtpDTO } from "../../../dtos/auth.dto.js";
 import type { IResendOtpUseCase, ResendOtpResponseDTO } from "../interfaces/IResendOtpUseCase.js";
 
 export class ResendOtpUseCase implements IResendOtpUseCase {
+  private readonly cooldownMs: number;
+
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly otpRepository: IOtpRepository,
     private readonly emailService: IEmailService,
-    private readonly passwordHasher: IPasswordHasher
-  ) {}
+    private readonly passwordHasher: IPasswordHasher,
+    cooldownMs?: number
+  ) {
+    this.cooldownMs =
+      cooldownMs !== undefined
+        ? cooldownMs
+        : (process.env.OTP_RESEND_COOLDOWN_MS !== undefined
+            ? Number(process.env.OTP_RESEND_COOLDOWN_MS)
+            : (process.env.NODE_ENV === "test" ? 0 : 60000));
+  }
 
   async execute(dto: ResendOtpDTO): Promise<ResendOtpResponseDTO> {
     const email = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       throw new AppError(HttpStatus.CONFLICT, "User already registered and verified");
+    }
+
+    if (this.cooldownMs > 0) {
+      const existingOtp = await this.otpRepository.findValid(email, OtpPurpose.SIGNUP);
+      if (existingOtp && existingOtp.createdAt) {
+        const elapsedMs = Date.now() - new Date(existingOtp.createdAt).getTime();
+        if (elapsedMs < this.cooldownMs) {
+          const remainingSeconds = Math.max(1, Math.ceil((this.cooldownMs - elapsedMs) / 1000));
+          throw new AppError(
+            HttpStatus.TOO_MANY_REQUESTS,
+            `Please wait ${remainingSeconds} seconds before requesting a new verification code`
+          );
+        }
+      }
     }
 
     if (typeof this.otpRepository.deleteMany === "function") {

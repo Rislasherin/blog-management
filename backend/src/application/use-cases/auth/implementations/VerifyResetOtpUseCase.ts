@@ -15,19 +15,40 @@ export class VerifyResetOtpUseCase implements IVerifyResetOtpUseCase {
   ) {}
 
   async execute(emailOrDto: string | VerifyResetOtpDTO, codeParam?: string): Promise<VerifyResetOtpResponseDTO> {
-    const email = typeof emailOrDto === "string" ? emailOrDto : emailOrDto.email;
-    const code = typeof emailOrDto === "string" ? (codeParam || "") : (emailOrDto.otp || (emailOrDto as { code?: string }).code || "");
+    const rawEmail = typeof emailOrDto === "string" ? emailOrDto : emailOrDto.email;
+    const email = (rawEmail || "").toLowerCase().trim();
+    const rawCode = typeof emailOrDto === "string" ? (codeParam || "") : (emailOrDto.otp || (emailOrDto as { code?: string }).code || "");
+    const code = (rawCode || "").trim();
 
     const otp = await this.otpRepository.findValid(email, OtpPurpose.RESET);
     if (!otp) {
       throw new AppError(HttpStatus.BAD_REQUEST, "Invalid or expired OTP");
     }
 
-    const isValid = await this.passwordHasher.compare(code, otp.codeHash);
     const otpId = (otp.id || otp._id)?.toString() ?? "";
+
+    if ((otp.attempts ?? 0) >= 5) {
+      if (otpId) {
+        await this.otpRepository.markAsUsed(otpId);
+      }
+      throw new AppError(
+        HttpStatus.BAD_REQUEST,
+        "Too many failed attempts. This verification code is no longer valid. Please request a new code."
+      );
+    }
+
+    const isValid = await this.passwordHasher.compare(code, otp.codeHash);
     if (!isValid) {
       if (otpId) {
-        await this.otpRepository.incrementAttempts(otpId);
+        const updatedOtp = await this.otpRepository.incrementAttempts(otpId);
+        const currentAttempts = updatedOtp ? (updatedOtp.attempts ?? 0) : (otp.attempts + 1);
+        if (currentAttempts >= 5) {
+          await this.otpRepository.markAsUsed(otpId);
+          throw new AppError(
+            HttpStatus.BAD_REQUEST,
+            "Too many failed attempts. This verification code is no longer valid. Please request a new code."
+          );
+        }
       }
       throw new AppError(HttpStatus.BAD_REQUEST, "Invalid OTP");
     }

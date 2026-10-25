@@ -20,16 +20,47 @@ export class VerifyOtpUseCase implements IVerifyOtpUseCase {
     const name = (dto.name || "").trim();
     const password = dto.password || "";
 
+    if (!name) {
+      throw new AppError(HttpStatus.BAD_REQUEST, "Name is required");
+    }
+    if (!password) {
+      throw new AppError(HttpStatus.BAD_REQUEST, "Password is required");
+    }
+
+    const existingUser = await this.userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new AppError(HttpStatus.CONFLICT, "User already exists with this email");
+    }
+
     const otp = await this.otpRepository.findValid(email, OtpPurpose.SIGNUP);
     if (!otp) {
       throw new AppError(HttpStatus.BAD_REQUEST, "Invalid or expired OTP");
     }
 
-    const isValid = await this.passwordHasher.compare(code, otp.codeHash);
     const otpId = (otp.id || otp._id)?.toString() ?? "";
+
+    if ((otp.attempts ?? 0) >= 5) {
+      if (otpId) {
+        await this.otpRepository.markAsUsed(otpId);
+      }
+      throw new AppError(
+        HttpStatus.BAD_REQUEST,
+        "Too many failed attempts. This verification code is no longer valid. Please request a new code."
+      );
+    }
+
+    const isValid = await this.passwordHasher.compare(code, otp.codeHash);
     if (!isValid) {
       if (otpId) {
-        await this.otpRepository.incrementAttempts(otpId);
+        const updatedOtp = await this.otpRepository.incrementAttempts(otpId);
+        const currentAttempts = updatedOtp ? (updatedOtp.attempts ?? 0) : (otp.attempts + 1);
+        if (currentAttempts >= 5) {
+          await this.otpRepository.markAsUsed(otpId);
+          throw new AppError(
+            HttpStatus.BAD_REQUEST,
+            "Too many failed attempts. This verification code is no longer valid. Please request a new code."
+          );
+        }
       }
       throw new AppError(HttpStatus.BAD_REQUEST, "Invalid OTP");
     }

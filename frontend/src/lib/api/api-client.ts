@@ -1,5 +1,9 @@
 export class ApiError extends Error {
-  constructor(public status: number, public message: string) {
+  constructor(
+    public status: number,
+    public message: string,
+    public errors?: Record<string, string[] | undefined>
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -48,12 +52,14 @@ async function fetchClient<T>(endpoint: string, options: FetchOptions = {}): Pro
 
   if (!response.ok) {
     const errorMsg = data && typeof data === "object" && "message" in data ? String(data.message) : "An unexpected error occurred";
-    throw new ApiError(response.status, errorMsg);
+    const errors = data && typeof data === "object" && "errors" in data ? (data.errors as Record<string, string[] | undefined>) : undefined;
+    throw new ApiError(response.status, errorMsg, errors);
   }
 
   if (data && typeof data === "object" && "success" in data && data.success === false) {
     const errorMsg = "message" in data ? String(data.message) : "Request failed";
-    throw new ApiError(response.status || 400, errorMsg);
+    const errors = "errors" in data ? (data.errors as Record<string, string[] | undefined>) : undefined;
+    throw new ApiError(response.status || 400, errorMsg, errors);
   }
 
   return data;

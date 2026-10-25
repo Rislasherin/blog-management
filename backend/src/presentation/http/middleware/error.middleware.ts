@@ -30,6 +30,31 @@ export const errorMiddleware = (
     });
   }
 
+  if (err instanceof mongoose.Error.ValidationError) {
+    return res.status(HttpStatus.BAD_REQUEST).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  if (
+    err instanceof SyntaxError &&
+    "status" in err &&
+    (err as { status: unknown }).status === 400
+  ) {
+    return res.status(HttpStatus.BAD_REQUEST).json({
+      success: false,
+      message: "Invalid JSON payload",
+    });
+  }
+
+  if ("code" in err && (err as { code: unknown }).code === 11000) {
+    return res.status(HttpStatus.CONFLICT).json({
+      success: false,
+      message: "An account with this email already exists",
+    });
+  }
+
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(413).json({
