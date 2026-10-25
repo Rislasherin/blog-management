@@ -25,16 +25,26 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  // Optional legacy SMTP configuration (retained for backward compatibility)
   SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().default(587),
-  SMTP_SECURE: z
-    .preprocess((val) => {
-      if (val === undefined || val === null || val === "") return undefined;
-      return val === "true" || val === true || val === "1";
-    }, z.boolean().optional()),
+  SMTP_PORT: z.coerce.number().default(465),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
+  SMTP_SECURE: z.preprocess((val) => {
+    if (val === "true" || val === true) return true;
+    if (val === "false" || val === false) return false;
+    return undefined;
+  }, z.boolean().optional()),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === "production" && !data.RESEND_API_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["RESEND_API_KEY"],
+      message: "RESEND_API_KEY is required in production environment.",
+    });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
