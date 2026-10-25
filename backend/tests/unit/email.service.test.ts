@@ -1,109 +1,163 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NodemailerEmailService } from "../../src/infrastructure/email/NodemailerEmailService.js";
+import { Email59EmailService } from "../../src/infrastructure/email/Email59EmailService.js";
 import { AppError } from "../../src/domain/errors/AppError.js";
 import { createContainer } from "../../src/infrastructure/di/container.js";
-import type { Transporter } from "nodemailer";
 
-describe("NodemailerEmailService Unit Tests", () => {
-  let mockTransporter: any;
+describe("Email59EmailService Unit Tests", () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTransporter = {
-      sendMail: vi.fn(),
-      verify: vi.fn(),
-    };
+    mockFetch = vi.fn();
   });
 
-  describe("1. Configuration and Transporter Resolution", () => {
-    it("should default to port 587 with STARTTLS (secure: false)", () => {
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
-      const config = emailService.getEffectiveConfig();
-
-      expect(config.host).toBe("smtp.gmail.com");
-      expect(config.port).toBe(587);
-      expect(config.secure).toBe(false);
+  describe("1. Configuration and Dependency Injection", () => {
+    it("should instantiate Email59EmailService by default in createContainer", () => {
+      const container = createContainer();
+      expect(container.emailService).toBeInstanceOf(Email59EmailService);
     });
 
-    it("should instantiate NodemailerEmailService by default in createContainer", () => {
-      const container = createContainer();
-      expect(container.emailService).toBeInstanceOf(NodemailerEmailService);
+    it("should resolve effective sender to blogplatform@email59.com", () => {
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
+      expect(emailService.getEffectiveSender()).toBe("blogplatform@email59.com");
     });
   });
 
   describe("2. Successful OTP email submission", () => {
-    it("should successfully send an OTP email with correct recipient, subject, and rendered templates", async () => {
-      mockTransporter.sendMail.mockResolvedValue({
-        messageId: "<msg-12345@smtp.gmail.com>",
-        accepted: ["test@example.com"],
-        rejected: [],
-      });
+    it("should call email59 /v1/send with correct headers, sender, and payload", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "msg_email59_12345",
+            status: "sent",
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
-      await emailService.sendOtp("test@example.com", "123456");
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
+      await emailService.sendOtp("newuser@example.com", "849201");
 
-      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
-      const mailArgs = mockTransporter.sendMail.mock.calls[0][0];
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, options] = mockFetch.mock.calls[0];
 
-      expect(mailArgs.to).toBe("test@example.com");
-      expect(mailArgs.from).toContain("BlogPlatform");
-      expect(mailArgs.subject).toBe("Your BlogPlatform Verification Code");
-      expect(mailArgs.text).toContain("123456");
-      expect(mailArgs.html).toContain("123456");
+      expect(url).toBe("https://email59.com/v1/send");
+      expect(options.method).toBe("POST");
+      expect(options.headers["Authorization"]).toBe("Bearer e59_test_key");
+      expect(options.headers["Content-Type"]).toBe("application/json");
+
+      const body = JSON.parse(options.body);
+      expect(body.from).toBe("blogplatform");
+      expect(body.to).toBe("newuser@example.com");
+      expect(body.subject).toBe("Your BlogPlatform Verification Code");
+      expect(body.category).toBe("transactional");
+      expect(body.text).toContain("849201");
+      expect(body.html).toContain("849201");
     });
   });
 
-  describe("3. Unconfigured / Missing SMTP credentials", () => {
-    it("should throw AppError(500) when transporter is not initialized, preventing silent false success", async () => {
-      const emailService = new NodemailerEmailService(null);
+  describe("3. Unconfigured / Missing API key", () => {
+    it("should throw AppError(500) when EMAIL59_KEY is missing", async () => {
+      const emailService = new Email59EmailService("", mockFetch as unknown as typeof fetch);
 
       await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toThrow(AppError);
       await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
         statusCode: 500,
         message: expect.stringContaining("Email delivery is not configured on the server"),
       });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
   describe("4. Recipient rejection handling", () => {
-    it("should throw AppError(400) when SMTP returns recipient rejected in sendMail info", async () => {
-      mockTransporter.sendMail.mockResolvedValue({
-        messageId: "<msg-rejected>",
-        accepted: [],
-        rejected: ["invalid-recipient@domain.com"],
-      });
+    it("should throw AppError(400) when email59 returns 422 recipient_rejected", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "recipient_rejected",
+            verdict: "disposable",
+          }),
+          { status: 422, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
 
-      await expect(emailService.sendOtp("invalid-recipient@domain.com", "123456")).rejects.toMatchObject({
+      await expect(emailService.sendOtp("disposable@mailinator.com", "123456")).rejects.toMatchObject({
         statusCode: 400,
         message: expect.stringContaining("could not be delivered to this email address"),
       });
     });
 
-    it("should throw AppError(400) when SMTP throws 550 Mailbox not found error", async () => {
-      const smtpErr = new Error("5.1.1 User unknown");
-      (smtpErr as any).responseCode = 550;
-      (smtpErr as any).code = "EENVELOPE";
-      mockTransporter.sendMail.mockRejectedValue(smtpErr);
+    it("should throw AppError(400) when email59 returns 400 invalid_email", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "invalid_email",
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
 
-      await expect(emailService.sendOtp("unknown@domain.com", "123456")).rejects.toMatchObject({
+      await expect(emailService.sendOtp("invalid-address", "123456")).rejects.toMatchObject({
         statusCode: 400,
         message: expect.stringContaining("could not be delivered to this email address"),
       });
     });
   });
 
-  describe("5. Authentication failure handling", () => {
-    it("should throw AppError(500) when SMTP authentication fails (EAUTH / 535)", async () => {
-      const authErr = new Error("535 5.7.8 Username and Password not accepted");
-      (authErr as any).code = "EAUTH";
-      (authErr as any).responseCode = 535;
-      mockTransporter.sendMail.mockRejectedValue(authErr);
+  describe("5. Allowance and rate limit handling", () => {
+    it("should throw AppError(429) when email59 returns daily_limit_reached", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "daily_limit_reached",
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 429,
+        message: expect.stringContaining("Email sending allowance reached for today"),
+      });
+    });
+  });
+
+  describe("6. Authentication and provider errors", () => {
+    it("should throw AppError(500) when email59 returns 401 invalid_api_key", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "invalid_api_key",
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+      const emailService = new Email59EmailService("e59_bad_key", mockFetch as unknown as typeof fetch);
+
+      await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
+        statusCode: 500,
+        message: expect.stringContaining("Email service authentication error"),
+      });
+    });
+
+    it("should throw AppError(500) when email59 returns 502 provider_error", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "provider_error",
+          }),
+          { status: 502, headers: { "Content-Type": "application/json" } }
+        )
+      );
+
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
 
       await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
         statusCode: 500,
@@ -112,71 +166,89 @@ describe("NodemailerEmailService Unit Tests", () => {
     });
   });
 
-  describe("6. Connection timeout & network restriction handling", () => {
-    it("should throw AppError(500) when SMTP connection times out (ETIMEDOUT) without automatic port switching", async () => {
-      const timeoutErr = new Error("Connection timeout");
-      (timeoutErr as any).code = "ETIMEDOUT";
-      (timeoutErr as any).syscall = "connect";
-      mockTransporter.sendMail.mockRejectedValue(timeoutErr);
+  describe("7. Network failures and timeouts", () => {
+    it("should throw AppError(500) on request timeout (AbortError)", async () => {
+      const abortErr = new Error("The operation was aborted");
+      abortErr.name = "AbortError";
+      mockFetch.mockRejectedValueOnce(abortErr);
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
 
       await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
         statusCode: 500,
-        message: expect.stringContaining("Failed to deliver verification email"),
+        message: expect.stringContaining("Email service request timed out"),
       });
-
-      // Crucial: verify sendMail was called exactly once — no endless retries or secondary port attempt
-      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
     });
 
-    it("should throw AppError(500) when SMTP connection is refused (ECONNREFUSED)", async () => {
-      const connErr = new Error("connect ECONNREFUSED");
-      (connErr as any).code = "ECONNREFUSED";
-      mockTransporter.sendMail.mockRejectedValue(connErr);
+    it("should throw AppError(500) on network connection failure", async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError("fetch failed: ENOTFOUND email59.com"));
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
 
       await expect(emailService.sendOtp("test@example.com", "123456")).rejects.toMatchObject({
         statusCode: 500,
-        message: expect.stringContaining("Failed to deliver verification email"),
+        message: expect.stringContaining("Email service connection failed"),
       });
-      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("7. verifyConnection diagnostics", () => {
-    it("should return success: true when transporter.verify resolves", async () => {
-      mockTransporter.verify.mockResolvedValue(true);
+  describe("8. verifyConnection diagnostics", () => {
+    it("should return success: true when /v1/account responds with account details", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            daily_limit: 200,
+            sent_today: 5,
+            remaining_today: 195,
+            credits_remaining: 500,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
       const result = await emailService.verifyConnection();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("verified successfully");
-      expect(result.details?.host).toBe("smtp.gmail.com");
-      expect(result.details?.port).toBe(587);
+      expect(result.message).toContain("Remaining emails today: 195/200");
+      expect(result.details?.sender).toBe("blogplatform@email59.com");
+      expect(result.details?.dailyLimit).toBe(200);
+      expect(result.details?.remainingToday).toBe(195);
     });
 
-    it("should return success: false when transporter.verify rejects with connection timeout", async () => {
-      const timeoutErr = new Error("Connection timeout");
-      (timeoutErr as any).code = "ETIMEDOUT";
-      mockTransporter.verify.mockRejectedValue(timeoutErr);
+    it("should return success: false when /v1/account returns 401 unauthorized", async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            detail: "invalid_api_key",
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        )
+      );
 
-      const emailService = new NodemailerEmailService(mockTransporter as unknown as Transporter);
+      const emailService = new Email59EmailService("e59_bad_key", mockFetch as unknown as typeof fetch);
       const result = await emailService.verifyConnection();
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("SMTP connection verification failed");
-      expect(result.details?.code).toBe("ETIMEDOUT");
+      expect(result.message).toContain("account verification failed (401)");
     });
 
-    it("should return success: false when transporter is null", async () => {
-      const emailService = new NodemailerEmailService(null);
+    it("should return success: false when API key is empty", async () => {
+      const emailService = new Email59EmailService("", mockFetch as unknown as typeof fetch);
       const result = await emailService.verifyConnection();
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("SMTP transporter is not initialized");
+      expect(result.message).toContain("EMAIL59_KEY is not configured");
+    });
+
+    it("should return success: false when network error occurs", async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+      const emailService = new Email59EmailService("e59_test_key", mockFetch as unknown as typeof fetch);
+      const result = await emailService.verifyConnection();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("Failed to fetch");
     });
   });
 });

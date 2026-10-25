@@ -30,7 +30,11 @@ const envSchema = z
     CLOUDINARY_CLOUD_NAME: z.string().optional(),
     CLOUDINARY_API_KEY: z.string().optional(),
     CLOUDINARY_API_SECRET: z.string().optional(),
-    // Gmail SMTP / Nodemailer configuration
+    // email59 HTTPS API configuration
+    EMAIL59_KEY: z.string().optional(),
+    EMAIL59_FROM: z.string().default("blogplatform"),
+    EMAIL_FROM: z.string().optional(),
+    // Optional SMTP configuration (retained for fallback compatibility if configured)
     SMTP_HOST: z.string().default("smtp.gmail.com"),
     SMTP_PORT: z.coerce.number().default(587),
     SMTP_SECURE: z.preprocess((val) => {
@@ -40,22 +44,14 @@ const envSchema = z
     }, z.boolean().default(false)),
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
-    EMAIL_FROM: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production") {
-      if (!data.SMTP_USER) {
+      if (!data.EMAIL59_KEY && (!data.SMTP_USER || !data.SMTP_PASS)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["SMTP_USER"],
-          message: "SMTP_USER is required in production environment.",
-        });
-      }
-      if (!data.SMTP_PASS) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["SMTP_PASS"],
-          message: "SMTP_PASS is required in production environment.",
+          path: ["EMAIL59_KEY"],
+          message: "EMAIL59_KEY is required in production environment.",
         });
       }
     }
